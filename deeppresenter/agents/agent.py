@@ -12,7 +12,7 @@ import yaml
 from jinja2 import Template
 from jinja2.runtime import StrictUndefined
 from openai.types.chat.chat_completion_message import ChatCompletionMessage
-from openai.types.chat.chat_completion_message_tool_call import (
+from openai.types.chat.chat_completion_message_function_tool_call import (
     ChatCompletionMessageFunctionToolCall as ToolCall,
 )
 from pydantic import BaseModel
@@ -60,7 +60,7 @@ class Agent:
         agent_env: AgentEnv,
         workspace: Path,
         language: Literal["zh", "en"],
-        config_file: str | None = None,
+        config_file: str | Path | None = None,
         keep_reasoning: bool = True,
         max_turns: int | None = None,
     ):
@@ -76,17 +76,19 @@ class Agent:
         self.max_context_turns = config.max_context_folds
         self.max_turns = max_turns
         self.turn_count = 0
-        config_file = (
+        role_config_file = (
             Path(config_file)
             if config_file
             else PACKAGE_DIR / "roles" / f"{self.name}.yaml"
         )
-        if not config_file.exists():
-            raise FileNotFoundError(f"Cannot found role config file at: {config_file} ")
+        if not role_config_file.exists():
+            raise FileNotFoundError(
+                f"Cannot found role config file at: {role_config_file} "
+            )
 
         # Setting basic context
         workspace.mkdir(parents=True, exist_ok=True)
-        with open(config_file, encoding="utf-8") as f:
+        with open(role_config_file, encoding="utf-8") as f:
             config_data = yaml.safe_load(f)
         self.role_config = RoleConfig(**config_data)
         self.llm: LLM = config[self.role_config.use_model]
@@ -238,16 +240,12 @@ class Agent:
         return self.chat_history[-1]
 
     @abstractmethod
-    async def loop(
+    def loop(
         self, req: InputRequest, *args, **kwargs
     ) -> AsyncGenerator[str | ChatMessage, None]:
         """
         Loop interface, return the message or the outcome filepath of the agent.
         """
-
-    @abstractmethod
-    async def finish(self, result: str):
-        """This function defines when and how should an agent finish their tasks, combined with outcome check"""
 
     async def execute(self, tool_calls: list[ToolCall]) -> str | list[ChatMessage]:
         coros = []
@@ -265,6 +263,9 @@ class Agent:
                         f"Too many tool calls ({len(tool_calls)}), max allowed is {MAX_TOOLCALL_PER_TURN}"
                     )
                     arguments = get_json_from_response(t.function.arguments)
+                    assert isinstance(arguments, dict), (
+                        f"Tool call arguments must be a dict or empty, while {arguments} is given"
+                    )
                     if t.function.name == "finalize":
                         arguments["agent_name"] = self.name
                         finish_id = t.id
@@ -272,9 +273,6 @@ class Agent:
                             "Finalize tool call must have an outcome"
                         )
                         outcome = arguments["outcome"]
-                    assert isinstance(arguments, dict), (
-                        f"Tool call arguments must be a dict or empty, while {arguments} is given"
-                    )
                     t.function.arguments = json.dumps(arguments, ensure_ascii=False)
                 except AssertionError as e:
                     observations.append(

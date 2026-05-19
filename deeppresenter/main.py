@@ -23,7 +23,7 @@ class AgentLoop:
         self,
         config: DeepPresenterConfig,
         session_id: str | None = None,
-        workspace: Path = None,
+        workspace: Path | None = None,
         language: Literal["zh", "en"] = "en",
     ):
         self.config = config
@@ -31,7 +31,7 @@ class AgentLoop:
         if session_id is None:
             session_id = str(uuid.uuid4())[:8]
         self.workspace = workspace or WORKSPACE_BASE / session_id
-        self.intermediate_output = {}
+        self.intermediate_output: dict[str, str | Path] = {}
         self.agent = None
         set_logger(
             f"deeppresenter-loop-{self.workspace.stem}",
@@ -147,7 +147,7 @@ class AgentLoop:
                 )
                 self.agent = self.pptagent
                 try:
-                    async for msg in self.pptagent.loop(request, md_file):
+                    async for msg in self.pptagent.loop(request, str(md_file)):
                         if isinstance(msg, str):
                             pptx_file = Path(msg)
                             if not pptx_file.is_absolute():
@@ -175,7 +175,7 @@ class AgentLoop:
                 )
                 self.agent = self.designagent
                 try:
-                    async for msg in self.designagent.loop(request, md_file):
+                    async for msg in self.designagent.loop(request, str(md_file)):
                         if isinstance(msg, str):
                             slide_html_dir = Path(msg)
                             if not slide_html_dir.is_absolute():
@@ -198,7 +198,7 @@ class AgentLoop:
                     await convert_html_to_pptx(
                         slide_html_dir,
                         pptx_path,
-                        aspect_ratio=request.powerpoint_type,
+                        aspect_ratio=request.powerpoint_type.value,
                         soft_parsing=soft_parsing,
                     )
                 except Exception as e:
@@ -214,7 +214,7 @@ class AgentLoop:
                         await pc.convert_to_pdf(
                             list(slide_html_dir.glob("*.html")),
                             pptx_path.with_suffix(".pdf"),
-                            aspect_ratio=request.powerpoint_type,
+                            aspect_ratio=request.powerpoint_type.value,
                         )
 
                 self.intermediate_output["final"] = str(pptx_path)

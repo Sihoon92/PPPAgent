@@ -3,6 +3,17 @@ from deeppresenter.utils.typings import InputRequest
 
 
 class PPTAgent(Agent):
+    def __init__(
+        self,
+        *args,
+        **kwargs,
+    ):
+        super().__init__(
+            *args,
+            **kwargs,
+        )
+        assert any(t["function"]["name"] == "list_templates" for t in self.tools)
+
     async def loop(self, req: InputRequest, markdown_file: str):
         while True:
             agent_message = await self.action(

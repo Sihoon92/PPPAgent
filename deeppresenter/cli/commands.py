@@ -9,7 +9,7 @@ import traceback
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
 import typer
 import yaml
@@ -216,7 +216,8 @@ def onboard():
                 reuse_previous_default=False,
             )
             config_data["vision_model"] = vision_model
-            last_config = ("Vision Model", vision_model)
+            if vision_model:
+                last_config = ("Vision Model", vision_model)
 
         console.print("\n[bold yellow]Optional Configurations[/bold yellow]")
         t2i_config = prompt_llm_config(
@@ -335,6 +336,9 @@ def generate(
 ):
     """Generate a presentation from prompt and optional files."""
     ensure_supported_platform()
+    if language not in {"en", "zh"}:
+        console.print("[bold red]Error:[/bold red] Language must be 'en' or 'zh'")
+        sys.exit(1)
     if not is_onboarded():
         console.print(
             "[bold red]Error:[/bold red] Please run 'deeppresenter onboard' (or 'pptagent onboard') first"

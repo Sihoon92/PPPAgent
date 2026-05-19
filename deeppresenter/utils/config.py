@@ -394,7 +394,7 @@ class DeepPresenterConfig(BaseModel):
     )
     async_tool_mode: bool = Field(
         default=False,
-        description="Enable async tool mode and return task ids for slow tool calls",
+        description="Enable async tool mode for slow tool calls",
     )
     file_path: str = Field(description="Configuration file path")
     mcp_config_file: str = Field(

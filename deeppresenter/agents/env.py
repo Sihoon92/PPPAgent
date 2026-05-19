@@ -16,13 +16,14 @@ from docker.errors import DockerException, NotFound
 from fastmcp.utilities.json_schema import compress_schema
 from fastmcp.utilities.types import get_cached_typeadapter
 from mcp.types import CallToolResult, TextContent
-from openai.types.chat.chat_completion_message_tool_call import (
+from openai.types.chat.chat_completion_message_function_tool_call import (
     ChatCompletionMessageFunctionToolCall as ToolCall,
 )
 from pydantic import BaseModel
 
 from deeppresenter.utils.config import DeepPresenterConfig
 from deeppresenter.utils.constants import (
+    ASYNC_TOOL_TIMEOUT,
     CUTOFF_WARNING,
     LOGGING_LEVEL,
     MCP_CALL_TIMEOUT,
@@ -60,6 +61,7 @@ class AgentEnv:
             workspace = Path(workspace)
         self.workspace = workspace.absolute()
         self.cutoff_len = cutoff_len
+        self.async_mode = config.async_tool_mode
         self.mcp_configs = []
         with open(config.mcp_config_file, encoding="utf-8") as f:
             for s in json.load(f):
@@ -101,16 +103,19 @@ class AgentEnv:
         self._tool_to_server = {}
         self.tool_history: list[tuple[ToolCall, ChatMessage]] = []
         self.tool_history_file = self.workspace / ".history" / "tool_history.jsonl"
+        self._async_tool_tasks: dict[str, asyncio.Task[CallToolResult]] = {}
+        self._async_tool_counter = 0
+        if self.async_mode:
+            self._register_async_tools()
 
     async def tool_execute(
         self,
         tool_call: ToolCall,
     ):
+        start_time = time.time()
+        arguments: dict | None = None
         try:
-            start_time = time.time()
-            if len(tool_call.function.arguments) == 0:
-                arguments = None
-            else:
+            if len(tool_call.function.arguments) != 0:
                 arguments = json.loads(tool_call.function.arguments)
                 try:
                     assert (
@@ -123,18 +128,11 @@ class AgentEnv:
                         is None
                     )
                 except jsonschema.ValidationError as e:
-                    raise f"Input validation error: {e.message}"
+                    raise ValueError(f"Input validation error: {e.message}") from e
 
-            if tool_call.function.name in self._local_tools:
-                result = await self._call_local_tool(tool_call.function.name, arguments)
-            else:
-                server_id = self._tool_to_server[tool_call.function.name]
-                result = await self.client.tool_execute(
-                    server_id, tool_call.function.name, arguments
-                )
+            result = await self._execute_tool(tool_call.function.name, arguments)
         except KeyError:
             result = CallToolResult(
-                type="text",
                 content=[
                     TextContent(
                         text=f"Tool `{tool_call.function.name}` not found.", type="text"
@@ -384,6 +382,8 @@ class AgentEnv:
                 if inspect.iscoroutinefunction(func)
                 else func(**kwargs)
             )
+            if isinstance(raw, CallToolResult):
+                return raw
         except Exception as e:
             return CallToolResult(
                 content=[
@@ -398,3 +398,56 @@ class AgentEnv:
             content=[TextContent(text=str(raw), type="text")],
             isError=False,
         )
+
+    async def _execute_tool(
+        self, tool_name: str, arguments: dict | None
+    ) -> CallToolResult:
+        if not self.async_mode or tool_name in {"gather", "finalize", "inspect_slide"}:
+            return await self._execute_tool_once(tool_name, arguments)
+        task = asyncio.create_task(self._execute_tool_once(tool_name, arguments))
+        done, _ = await asyncio.wait({task}, timeout=ASYNC_TOOL_TIMEOUT)
+        if task in done:
+            return task.result()
+        self._async_tool_counter += 1
+        task_id = f"task_{self._async_tool_counter:04d}"
+        self._async_tool_tasks[task_id] = task
+        return CallToolResult(
+            content=[
+                TextContent(
+                    text=f"Tool `{tool_name}` is still running after {ASYNC_TOOL_TIMEOUT} seconds as `{task_id}`. Call `gather` later to get the results.",
+                    type="text",
+                )
+            ],
+            isError=False,
+        )
+
+    def _register_async_tools(self) -> None:
+        async def gather() -> CallToolResult:
+            """
+            Wait for all background tasks to finish and gather the results.
+            """
+            if not self._async_tool_tasks:
+                return CallToolResult(
+                    content=[TextContent(text="No background tasks.", type="text")],
+                    isError=False,
+                )
+            tasks = self._async_tool_tasks
+            self._async_tool_tasks = {}
+            results = await asyncio.gather(*tasks.values(), return_exceptions=True)
+            texts = [
+                f"`{task_id}` result:\n" + "\n".join(c.text for c in result.content)
+                for task_id, result in zip(tasks, results, strict=True)
+            ]
+            return CallToolResult(
+                content=[TextContent(text="\n\n".join(texts), type="text")],
+            )
+
+        self.register_tool(gather)
+
+    async def _execute_tool_once(
+        self, tool_name: str, arguments: dict | None
+    ) -> CallToolResult:
+        if tool_name in self._local_tools:
+            return await self._call_local_tool(tool_name, arguments)
+        server_id = self._tool_to_server[tool_name]
+        return await self.client.tool_execute(server_id, tool_name, arguments)
