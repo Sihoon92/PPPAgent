@@ -7,9 +7,9 @@ from os.path import dirname, exists, join
 from jinja2 import Template
 from tqdm.asyncio import tqdm
 
-from .model_utils import ModelManager
-from .presentation import Presentation
-from .utils import Config, package_join, ppt_to_images
+from ..model_utils import ModelManager
+from ..presentation import Presentation
+from ..utils import Config, package_join, ppt_to_images
 
 language_model = None
 vision_model = None
