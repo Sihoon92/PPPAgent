@@ -54,10 +54,6 @@ We **strongly recommend** deploying our fine-tuned model for the best experience
 | GGUF (Quantized) | [Forceless/DeepPresenter-9B-GGUF](https://huggingface.co/Forceless/DeepPresenter-9B-GGUF) | [forceless/DeepPresenter-9B-GGUF](https://modelscope.cn/models/forceless/DeepPresenter-9B-GGUF) |
 | Full Weights | [Forceless/DeepPresenter-9B](https://huggingface.co/Forceless/DeepPresenter-9B) | [forceless/DeepPresenter-9B](https://modelscope.cn/models/forceless/DeepPresenter-9B) |
 
-<div align="center">
-  <img src="resource/wechat.jpg" width="140px">
-</div>
-
 ## 📅 News
 
 - **[2026/04]** 🎉 [DeepPresenter](https://arxiv.org/abs/2602.22839) accepted to **ACL 2026**!
@@ -133,6 +129,15 @@ uvx pptagent generate "Q4 Report" \
 | `pptagent reset`    | Reset configuration                               |
 | `pptagent serve`    | Start the local inference service used by the CLI |
 
+### Docker Images
+
+DeepPresenter publishes two runtime images:
+
+| Local image name | Purpose | Docker Hub | 1ms.run mirror |
+| --- | --- | --- | --- |
+| `deeppresenter-host` | Host service for the web UI and orchestration runtime | [`forceless/deeppresenter-host`](https://hub.docker.com/r/forceless/deeppresenter-host) | [`docker.1ms.run/forceless/deeppresenter-host`](https://1ms.run/r/forceless/deeppresenter-host) |
+| `deeppresenter-sandbox` | Sandbox image used by the runtime for isolated tool execution | [`forceless/deeppresenter-sandbox`](https://hub.docker.com/r/forceless/deeppresenter-sandbox) | [`docker.1ms.run/forceless/deeppresenter-sandbox`](https://1ms.run/r/forceless/deeppresenter-sandbox) |
+
 ### 2. Minimal Setup / Development: Build From Source
 
 Use this mode if you want the smallest abstraction layer and full control over dependencies during development.
@@ -147,9 +152,17 @@ modelscope download forceless/fasttext-language-id
 docker pull forceless/deeppresenter-sandbox
 docker pull forceless/deeppresenter-host
 docker tag forceless/deeppresenter-sandbox deeppresenter-sandbox
+docker tag forceless/deeppresenter-host deeppresenter-host
+
+# or pull through the 1ms.run mirror
+docker pull docker.1ms.run/forceless/deeppresenter-sandbox
+docker pull docker.1ms.run/forceless/deeppresenter-host
+docker tag docker.1ms.run/forceless/deeppresenter-sandbox deeppresenter-sandbox
+docker tag docker.1ms.run/forceless/deeppresenter-host deeppresenter-host
 
 # or build from dockerfile
 docker build -t deeppresenter-sandbox -f deeppresenter/docker/SandBox.Dockerfile .
+docker build -t deeppresenter-host -f deeppresenter/docker/Host.Dockerfile .
 ```
 
 Start the app:
@@ -165,10 +178,19 @@ Use this mode for a stable server environment with explicit dependencies.
 ```bash
 # Pull the public images to avoid build from source
 docker pull forceless/deeppresenter-sandbox
+docker pull forceless/deeppresenter-host
 docker tag forceless/deeppresenter-sandbox deeppresenter-sandbox
+docker tag forceless/deeppresenter-host deeppresenter-host
+
+# Or pull through the 1ms.run mirror
+docker pull docker.1ms.run/forceless/deeppresenter-sandbox
+docker pull docker.1ms.run/forceless/deeppresenter-host
+docker tag docker.1ms.run/forceless/deeppresenter-sandbox deeppresenter-sandbox
+docker tag docker.1ms.run/forceless/deeppresenter-host deeppresenter-host
 
 # Or build from source
 docker build -t deeppresenter-sandbox -f deeppresenter/docker/SandBox.Dockerfile .
+docker build -t deeppresenter-host -f deeppresenter/docker/Host.Dockerfile .
 
 # Start the host service
 docker compose up -d
