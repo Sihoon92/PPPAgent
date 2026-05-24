@@ -331,6 +331,13 @@ The service exposes the web UI on `http://localhost:7861`.
         </a>
     </td>
     <td align="center" style="word-wrap: break-word; width: 120.0; height: 120.0">
+        <a href=https://github.com/lnennnn>
+            <img src=https://avatars.githubusercontent.com/u/124434018?v=4 width="80;"  alt=lnennnn/>
+            <br />
+            <sub style="font-size:14px"><b>lnennnn</b></sub>
+        </a>
+    </td>
+    <td align="center" style="word-wrap: break-word; width: 120.0; height: 120.0">
         <a href=https://github.com/KurisuMakiseSame>
             <img src=https://avatars.githubusercontent.com/u/168447425?v=4 width="80;"  alt=KurisuMakiseSame/>
             <br />
@@ -351,6 +358,8 @@ The service exposes the web UI on `http://localhost:7861`.
             <sub style="font-size:14px"><b>Angelen</b></sub>
         </a>
     </td>
+</tr>
+<tr>
     <td align="center" style="word-wrap: break-word; width: 120.0; height: 120.0">
         <a href=https://github.com/kylooh>
             <img src=https://avatars.githubusercontent.com/u/26456650?v=4 width="80;"  alt=Eliot White/>
@@ -358,8 +367,6 @@ The service exposes the web UI on `http://localhost:7861`.
             <sub style="font-size:14px"><b>Eliot White</b></sub>
         </a>
     </td>
-</tr>
-<tr>
     <td align="center" style="word-wrap: break-word; width: 120.0; height: 120.0">
         <a href=https://github.com/EvolvedGhost>
             <img src=https://avatars.githubusercontent.com/u/92856393?v=4 width="80;"  alt=EvolvedGhost/>
@@ -388,6 +395,8 @@ The service exposes the web UI on `http://localhost:7861`.
             <sub style="font-size:14px"><b>JunZhang</b></sub>
         </a>
     </td>
+</tr>
+<tr>
     <td align="center" style="word-wrap: break-word; width: 120.0; height: 120.0">
         <a href=https://github.com/openaitx-system>
             <img src=https://avatars.githubusercontent.com/u/215529505?v=4 width="80;"  alt=Open AI Tx/>
@@ -395,8 +404,6 @@ The service exposes the web UI on `http://localhost:7861`.
             <sub style="font-size:14px"><b>Open AI Tx</b></sub>
         </a>
     </td>
-</tr>
-<tr>
     <td align="center" style="word-wrap: break-word; width: 120.0; height: 120.0">
         <a href=https://github.com/haosenwang1018>
             <img src=https://avatars.githubusercontent.com/u/167664334?v=4 width="80;"  alt=Sense_wang/>
@@ -423,13 +430,6 @@ The service exposes the web UI on `http://localhost:7861`.
             <img src=https://avatars.githubusercontent.com/u/81767213?v=4 width="80;"  alt=Zhenyu/>
             <br />
             <sub style="font-size:14px"><b>Zhenyu</b></sub>
-        </a>
-    </td>
-    <td align="center" style="word-wrap: break-word; width: 120.0; height: 120.0">
-        <a href=https://github.com/lnennnn>
-            <img src=https://avatars.githubusercontent.com/u/124434018?v=4 width="80;"  alt=lnennnn/>
-            <br />
-            <sub style="font-size:14px"><b>lnennnn</b></sub>
         </a>
     </td>
 </tr>
