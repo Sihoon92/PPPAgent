@@ -383,9 +383,9 @@ The service exposes the web UI on `http://localhost:7861`.
     </td>
     <td align="center" style="word-wrap: break-word; width: 120.0; height: 120.0">
         <a href=https://github.com/James4Ever0>
-            <img src=https://avatars.githubusercontent.com/u/103997068?v=4 width="80;"  alt=James Brown/>
+            <img src=https://avatars.githubusercontent.com/u/103997068?v=4 width="80;"  alt=白雨 | James Brown/>
             <br />
-            <sub style="font-size:14px"><b>James Brown</b></sub>
+            <sub style="font-size:14px"><b>白雨 | James Brown</b></sub>
         </a>
     </td>
     <td align="center" style="word-wrap: break-word; width: 120.0; height: 120.0">
