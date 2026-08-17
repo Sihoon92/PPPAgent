@@ -1,0 +1,1622 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>템플릿 기반 PPT 생성 — PPTAgent 해설</title>
+<style>
+  :root{
+    --bg:#f7f8f6;
+    --panel:#ffffff;
+    --ink:#1b2320;
+    --ink-soft:#4d5a54;
+    --ink-faint:#7c8a83;
+    --line:#dfe4e0;
+    --green:#1f6b4a;
+    --green-soft:#e6f1eb;
+    --green-line:#a9cdb9;
+    --purple:#6b4fa8;
+    --purple-soft:#efeaf8;
+    --purple-line:#c3b2e4;
+    --amber:#a2680a;
+    --amber-soft:#fbf1dc;
+    --amber-line:#e3c37f;
+    --blue:#1d5f8a;
+    --blue-soft:#e4f0f7;
+    --blue-line:#a6cbe1;
+    --red:#a33a30;
+    --red-soft:#fbe9e7;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo",
+      "Malgun Gothic", "Noto Sans KR", sans-serif;
+    line-height:1.75; font-size:16.5px;
+    padding-bottom:120px;
+  }
+  .wrap{max-width:900px; margin:0 auto; padding:0 20px}
+  header.hero{
+    background:linear-gradient(160deg,#1f6b4a 0%, #17503a 60%, #0f3728 100%);
+    color:#eef5f0; padding:56px 0 44px; margin-bottom:36px;
+  }
+  header.hero h1{margin:0 0 10px; font-size:2.05rem; line-height:1.3; letter-spacing:-0.02em}
+  header.hero p{margin:0; color:#c9ded3; font-size:1.02rem}
+  header.hero .meta{margin-top:18px; font-size:.85rem; color:#9dbfae; font-family:var(--mono)}
+  h2{
+    margin:64px 0 8px; font-size:1.5rem; letter-spacing:-0.01em;
+    padding-top:14px; border-top:2px solid var(--line);
+  }
+  h2 .num{color:var(--green); font-family:var(--mono); font-size:1.05rem; margin-right:10px}
+  h3{margin:38px 0 6px; font-size:1.14rem; color:var(--ink)}
+  h4{margin:26px 0 4px; font-size:1.0rem; color:var(--ink-soft)}
+  p{margin:12px 0}
+  a{color:var(--green)}
+  code{
+    font-family:var(--mono); font-size:.88em; background:#eceee9;
+    padding:1px 5px; border-radius:4px; color:#274036;
+  }
+  pre{
+    white-space:pre; overflow-x:auto; background:#182220; color:#dbe6df;
+    padding:16px 18px; border-radius:10px; font-family:var(--mono);
+    font-size:.83rem; line-height:1.6; margin:16px 0;
+    border:1px solid #223330;
+  }
+  pre code{background:none; padding:0; color:inherit; font-size:1em}
+  pre.light{background:#fbfcfb; color:#243029; border:1px solid var(--line)}
+  .callout{
+    border-left:4px solid var(--green); background:var(--green-soft);
+    padding:14px 18px; border-radius:0 8px 8px 0; margin:20px 0;
+  }
+  .callout.warn{border-left-color:var(--amber); background:var(--amber-soft)}
+  .callout.info{border-left-color:var(--blue); background:var(--blue-soft)}
+  .callout.danger{border-left-color:var(--red); background:var(--red-soft)}
+  .callout .t{font-weight:700; display:block; margin-bottom:4px; font-size:.93rem}
+  .callout p:first-of-type{margin-top:0}
+  .callout p:last-child{margin-bottom:0}
+
+  /* ── TOC ── */
+  nav.toc{
+    background:var(--panel); border:1px solid var(--line); border-radius:12px;
+    padding:20px 24px; margin:0 0 10px;
+  }
+  nav.toc h2{margin:0 0 10px; border:none; padding:0; font-size:1.05rem}
+  nav.toc ol{margin:0; padding-left:22px}
+  nav.toc li{margin:5px 0}
+  nav.toc a{text-decoration:none}
+  nav.toc a:hover{text-decoration:underline}
+
+  /* ── slide card visual language ── */
+  .deck{display:flex; flex-wrap:wrap; gap:12px; margin:20px 0}
+  .slidecard{
+    width:132px; background:#fff; border:1px solid var(--line); border-radius:6px;
+    padding:8px; position:relative; box-shadow:0 1px 2px rgba(0,0,0,.05);
+  }
+  .slidecard .sc-n{
+    position:absolute; top:-9px; left:-9px; width:20px; height:20px; border-radius:50%;
+    background:var(--ink); color:#fff; font-size:.68rem; display:flex;
+    align-items:center; justify-content:center; font-family:var(--mono);
+  }
+  .slidecard .sc-title{height:8px; border-radius:2px; background:var(--green); margin-bottom:6px}
+  .slidecard .sc-title.short{width:55%}
+  .slidecard .sc-title.mid{width:75%}
+  .slidecard .sc-line{height:4px; border-radius:2px; background:#c9d2cc; margin:4px 0}
+  .slidecard .sc-line.w90{width:90%} .slidecard .sc-line.w70{width:70%}
+  .slidecard .sc-line.w50{width:50%} .slidecard .sc-line.w40{width:40%}
+  .slidecard .sc-img{
+    height:34px; border-radius:3px; background:
+      repeating-linear-gradient(45deg,#dbe7ee,#dbe7ee 5px,#cddde7 5px,#cddde7 10px);
+    border:1px solid var(--blue-line); margin:5px 0;
+  }
+  .slidecard .sc-cap{font-size:.62rem; color:var(--ink-faint); text-align:center; margin-top:4px; line-height:1.3}
+  .slidecard.fn{border-color:var(--amber-line); background:#fffdf7}
+  .slidecard.fn .sc-title{background:var(--amber)}
+  .slidecard.pick{border:2px solid var(--green); box-shadow:0 0 0 3px var(--green-soft)}
+  .slidecard.ghost{opacity:.42}
+  .clusterbox{
+    border:1.5px dashed var(--green-line); border-radius:10px; padding:14px 14px 8px;
+    margin:14px 0; background:#fbfdfc;
+  }
+  .clusterbox > .lbl{
+    font-size:.76rem; font-family:var(--mono); color:var(--green);
+    margin-bottom:8px; display:block;
+  }
+
+  /* ── flow diagram ── */
+  .flow{display:flex; flex-wrap:wrap; align-items:stretch; gap:8px; margin:22px 0}
+  .flow .node{
+    flex:1 1 150px; min-width:140px; background:#fff; border:1px solid var(--line);
+    border-radius:9px; padding:10px 12px;
+  }
+  .flow .node .k{
+    font-size:.68rem; font-family:var(--mono); text-transform:uppercase;
+    letter-spacing:.06em; color:var(--ink-faint); display:block; margin-bottom:3px;
+  }
+  .flow .node .n{font-weight:700; font-size:.92rem; display:block}
+  .flow .node .d{font-size:.79rem; color:var(--ink-soft); margin-top:5px; line-height:1.5}
+  .flow .node.llm{background:var(--purple-soft); border-color:var(--purple-line)}
+  .flow .node.llm .k{color:var(--purple)}
+  .flow .node.vlm{background:var(--blue-soft); border-color:var(--blue-line)}
+  .flow .node.vlm .k{color:var(--blue)}
+  .flow .node.det{background:#f4f6f4}
+  .flow .arrow{
+    align-self:center; color:var(--ink-faint); font-size:1.15rem; flex:0 0 auto; padding:0 1px;
+  }
+  @media (max-width:640px){ .flow .arrow{display:none} .flow{flex-direction:column} }
+
+  .legend{display:flex; flex-wrap:wrap; gap:14px; margin:16px 0; font-size:.82rem}
+  .legend span{display:flex; align-items:center; gap:6px}
+  .legend i{width:14px; height:14px; border-radius:3px; display:inline-block; border:1px solid var(--line)}
+
+  table{
+    width:100%; border-collapse:collapse; margin:20px 0; font-size:.86rem;
+    background:#fff; border:1px solid var(--line); border-radius:8px; overflow:hidden;
+  }
+  .tablescroll{overflow-x:auto; -webkit-overflow-scrolling:touch}
+  .tablescroll table{min-width:640px; margin:0}
+  th,td{border-bottom:1px solid var(--line); padding:9px 11px; text-align:left; vertical-align:top}
+  th{background:#f1f4f2; font-weight:700; font-size:.8rem; color:var(--ink-soft)}
+  tr:last-child td{border-bottom:none}
+  td code{font-size:.82em}
+
+  .keyval{display:grid; grid-template-columns:max-content 1fr; gap:4px 14px; margin:12px 0; font-size:.9rem}
+  .keyval dt{font-family:var(--mono); color:var(--green); font-size:.84rem}
+  .keyval dd{margin:0}
+
+  ul.tree{list-style:none; padding-left:0; font-family:var(--mono); font-size:.85rem; line-height:2}
+  ul.tree ul{list-style:none; padding-left:22px; border-left:1px dotted var(--line); margin-left:6px}
+  ul.tree .fname{color:var(--green); font-weight:700}
+  ul.tree .note{font-family:-apple-system,"Segoe UI","Malgun Gothic",sans-serif;
+    color:var(--ink-faint); font-size:.86em; margin-left:8px}
+
+  .skipbox{
+    border:1px dashed var(--line); border-radius:10px; padding:4px 18px;
+    background:#fcfdfc; margin:18px 0;
+  }
+  .skipbox > summary{
+    cursor:pointer; font-weight:700; padding:12px 0; color:var(--ink-soft); font-size:.95rem;
+  }
+
+  /* ── quiz ── */
+  .quiz{background:#fff; border:1px solid var(--line); border-radius:12px; padding:20px 22px; margin:22px 0}
+  .quiz .q{font-weight:700; margin:0 0 12px}
+  .quiz .opt{
+    display:block; width:100%; text-align:left; background:#fafbfa; border:1px solid var(--line);
+    border-radius:8px; padding:10px 13px; margin:7px 0; cursor:pointer; font:inherit;
+    font-size:.92rem; color:var(--ink); transition:background .12s, border-color .12s;
+  }
+  .quiz .opt:hover:not(:disabled){background:#f0f4f1; border-color:var(--green-line)}
+  .quiz .opt:disabled{cursor:default}
+  .quiz .opt.correct{background:var(--green-soft); border-color:var(--green); font-weight:600}
+  .quiz .opt.wrong{background:var(--red-soft); border-color:var(--red)}
+  .quiz .fb{margin-top:12px; font-size:.9rem; padding:11px 14px; border-radius:8px; display:none; line-height:1.65}
+  .quiz .fb.show{display:block}
+  .quiz .fb.ok{background:var(--green-soft); border-left:3px solid var(--green)}
+  .quiz .fb.no{background:var(--amber-soft); border-left:3px solid var(--amber)}
+
+  /* ── question memo ── */
+  .qmemo{
+    border:1.5px dashed #b9c3bd; background:#f3f5f3; border-radius:10px;
+    padding:12px 15px; margin:24px 0;
+  }
+  .qmemo-head{display:flex; flex-wrap:wrap; align-items:baseline; gap:10px; margin-bottom:7px}
+  .qmemo-label{
+    font-size:.72rem; font-weight:700; letter-spacing:.05em; color:#5a6862;
+    background:#e3e8e4; border-radius:20px; padding:2px 10px;
+  }
+  .qmemo-hint{font-size:.74rem; color:var(--ink-faint)}
+  .qmemo-question{
+    min-height:2.1em; background:#fff; border:1px solid var(--line); border-radius:7px;
+    padding:8px 11px; font-size:.9rem; outline:none;
+  }
+  .qmemo-question:focus{border-color:var(--green-line); box-shadow:0 0 0 3px var(--green-soft)}
+  .qmemo-question:empty:before{content:attr(data-placeholder); color:#9fa9a4}
+  .qmemo-answer{
+    margin-top:10px; background:#fff; border-left:3px solid var(--green);
+    border-radius:0 7px 7px 0; padding:10px 13px; font-size:.9rem;
+  }
+  .qmemo-answer:before{
+    content:"답변"; display:block; font-size:.7rem; font-weight:700; letter-spacing:.05em;
+    color:var(--green); margin-bottom:4px;
+  }
+  .qmemo[data-status="answered"]{border:1.5px solid var(--green-line); background:#f4faf6}
+
+  #qmemo-bar{
+    position:fixed; left:0; right:0; bottom:0; background:rgba(24,34,32,.96);
+    color:#dbe6df; padding:11px 18px; display:flex; flex-wrap:wrap; align-items:center;
+    gap:12px; z-index:50; font-size:.8rem; backdrop-filter:blur(6px);
+  }
+  #qmemo-save-btn{
+    background:var(--green); color:#fff; border:none; border-radius:7px;
+    padding:8px 16px; font:inherit; font-weight:700; cursor:pointer; font-size:.85rem;
+  }
+  #qmemo-save-btn:hover{background:#2a8259}
+  #qmemo-saymsg{color:#9dbfae; font-family:var(--mono); font-size:.74rem; word-break:break-all}
+
+  .footnote{font-size:.83rem; color:var(--ink-faint); margin-top:6px}
+  .pathref{font-family:var(--mono); font-size:.83rem; color:var(--green)}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <h1>템플릿 기반 PPT 생성은 어떻게 동작하는가</h1>
+    <p>PPTAgent가 기성 <code>.pptx</code>를 “레이아웃 부품 창고”로 바꾸고, 그 부품에 새 내용을 끼워 넣어 발표자료를 만드는 과정</p>
+    <div class="meta">PPTAgent · pptagent/ 스택 · 2026-08-18</div>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>목차</h2>
+  <ol>
+    <li><a href="#bg">배경 — 슬라이드는 왜 “생성”하기 어려운가</a></li>
+    <li><a href="#intuition">직관 — 쓰지 말고 갈아끼워라</a></li>
+    <li><a href="#storage">템플릿은 정확히 어떻게 저장되는가</a></li>
+    <li><a href="#induction">그 저장물은 어떻게 만들어지는가 (Stage I)</a></li>
+    <li><a href="#generate">저장된 템플릿으로 슬라이드를 만드는 과정 (Stage II)</a></li>
+    <li><a href="#llm">LLM은 어디에서, 무엇을 받고 무엇을 뱉는가</a></li>
+    <li><a href="#paths">두 개의 실행 경로: 자동 파이프라인 vs MCP 도구</a></li>
+    <li><a href="#edges">날카로운 모서리</a></li>
+    <li><a href="#quiz">퀴즈</a></li>
+  </ol>
+  <p class="footnote" style="margin-top:14px">
+    글 곳곳에 <b>질문 메모</b> 상자가 있습니다. 읽다가 막히는 지점에 바로 질문을 적어 두세요.
+    입력하는 즉시 이 브라우저(localStorage)에 자동 저장되고, 맨 아래 <b>질문 저장</b> 버튼을 누르면
+    <i>같은 파일명</i>으로 질문이 박힌 사본이 다운로드됩니다. 상태 표시줄이 알려주는 경로에 덮어쓴 뒤
+    Claude에게 “질문에 답해줘”라고 하면 이 파일 안에 답이 채워집니다.
+  </p>
+</nav>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2 id="bg"><span class="num">01</span>배경 — 슬라이드는 왜 “생성”하기 어려운가</h2>
+
+<p>
+발표자료를 자동으로 만들라는 요구는 겉보기에 텍스트 생성 문제처럼 보인다. 문서를 넣으면 슬라이드가 나온다.
+그런데 슬라이드는 글이 아니라 <em>배치된 도형들</em>이다. 제목이 어디에 놓이고, 글머리 기호가 몇 개까지 들어가야
+넘치지 않고, 로고가 왼쪽 아래 몇 pt 지점에 있어야 하는지 — 이 전부가 “내용”과 무관하게 미리 정해져 있어야
+사람이 보기에 그럴듯하다. LLM에게 “예쁜 슬라이드를 만들어”라고 시키면 내용은 잘 쓰지만 배치는 무너진다.
+</p>
+
+<details class="skipbox">
+  <summary>깊은 배경 — <code>.pptx</code>가 실제로 무엇인지 (이미 아신다면 건너뛰세요)</summary>
+  <p>
+    <code>.pptx</code> 파일은 사실 <b>ZIP 압축된 XML 묶음</b>이다. 압축을 풀면 슬라이드 한 장마다
+    <code>slide1.xml</code> 같은 파일이 있고, 그 안에는 도형(shape)들이 좌표·크기·글꼴·색과 함께 적혀 있다.
+    이미지는 <code>media/</code> 폴더에 실제 파일로 들어 있고 XML은 그걸 참조한다.
+  </p>
+  <p>
+    중요한 구조가 두 가지 더 있다.
+  </p>
+  <ul>
+    <li><b>슬라이드 마스터 / 레이아웃</b>: “제목 슬라이드”, “제목+내용” 같은 <em>틀</em>이 파일 안에 따로 저장되어 있다.
+      각 슬라이드는 “나는 이 레이아웃을 쓴다”라고 가리킨다. 테마 색, 기본 글꼴, 배경 그래픽이 여기 들어 있다.</li>
+    <li><b>텍스트 프레임 / 문단 / 런(run)</b>: 텍스트 상자 하나 안에 문단(paragraph)이 여러 개 있고,
+      문단 하나 안에 서식이 같은 조각(run)이 여러 개 있다. “<b>굵은</b> 글씨 한 단어”는 별도의 run이다.</li>
+  </ul>
+  <p>
+    파이썬에서는 <code>python-pptx</code>(이 저장소는 포크인 <code>pptagent_pptx</code>를 쓴다)로 이 구조를 읽고 쓴다.
+    다만 이 라이브러리는 <em>기존 도형을 수정</em>하는 데는 강하지만, <em>보기 좋은 새 배치를 창조</em>하지는 못한다.
+    좌표를 직접 계산해서 도형을 새로 놓으면 결과는 대개 처참하다.
+  </p>
+  <p>
+    그래서 이 프로젝트의 근본 전제가 나온다. <b>새로 그리지 말고, 잘 만들어진 슬라이드를 복제해서 내용만 바꾼다.</b>
+  </p>
+</details>
+
+<div class="qmemo" data-qid="bg-pptx-structure" data-status="open">
+  <div class="qmemo-head">
+    <span class="qmemo-label">질문 메모</span>
+    <span class="qmemo-hint">이 부분에서 궁금한 점을 적어보세요. 저장하면 이 파일에 그대로 남습니다.</span>
+  </div>
+  <div class="qmemo-question" contenteditable="true"
+       data-placeholder="여기에 질문을 적어보세요..."></div>
+  <div class="qmemo-answer" hidden></div>
+</div>
+
+<h3>이 저장소의 두 스택</h3>
+
+<p>
+저장소를 열면 비슷한 개념이 두 군데에 있어 헷갈린다. <span class="pathref">AGENTS.md</span>가 정리해 주는 대로 나누면 이렇다.
+</p>
+
+<div class="keyval">
+  <dt>deeppresenter/</dt>
+  <dd>현재 제품 표면. CLI, 멀티 에이전트 루프, HTML→PPTX 변환 파이프라인. 오늘의 주제는 아니다.</dd>
+  <dt>pptagent/</dt>
+  <dd><b>이 글의 주제.</b> 템플릿 기반 생성의 핵심 라이브러리. MCP 서버 <code>pptagent-mcp</code>의 실체이기도 하다.</dd>
+</div>
+
+<p>
+그리고 <code>pptagent/</code> 안은 다시 두 단계로 나뉜다. 코드의 docstring이 직접 이렇게 부른다.
+</p>
+
+<div class="flow">
+  <div class="node det">
+    <span class="k">Stage I · 오프라인</span>
+    <span class="n">Presentation Analysis</span>
+    <span class="d"><code>induct.py</code> · 참조 PPTX 한 개를 뜯어서 <b>레이아웃 카탈로그</b>를 만든다. 템플릿당 딱 한 번.</span>
+  </div>
+  <div class="arrow">→</div>
+  <div class="node det">
+    <span class="k">저장물</span>
+    <span class="n">slide_induction.json</span>
+    <span class="d">카탈로그가 디스크에 남는다. 이후 생성은 이 파일만 읽는다.</span>
+  </div>
+  <div class="arrow">→</div>
+  <div class="node det">
+    <span class="k">Stage II · 요청마다</span>
+    <span class="n">Presentation Generation</span>
+    <span class="d"><code>pptgen.py</code> · 카탈로그에서 레이아웃을 고르고 내용을 채워 새 덱을 만든다.</span>
+  </div>
+</div>
+
+<p>
+질문하신 세 가지가 정확히 이 그림에 대응한다. “템플릿 정보를 어떻게 저장하는가”는 Stage I의 결과물,
+“그걸로 어떻게 슬라이드를 만드는가”는 Stage II, “LLM이 어디에 쓰이는가”는 두 단계에 걸쳐 있다.
+</p>
+
+<div class="qmemo" data-qid="bg-two-stacks" data-status="open">
+  <div class="qmemo-head">
+    <span class="qmemo-label">질문 메모</span>
+    <span class="qmemo-hint">이 부분에서 궁금한 점을 적어보세요. 저장하면 이 파일에 그대로 남습니다.</span>
+  </div>
+  <div class="qmemo-question" contenteditable="true"
+       data-placeholder="여기에 질문을 적어보세요..."></div>
+  <div class="qmemo-answer" hidden></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2 id="intuition"><span class="num">02</span>직관 — 쓰지 말고 갈아끼워라</h2>
+
+<p>
+핵심 아이디어는 한 문장으로 요약된다.
+</p>
+
+<div class="callout">
+  <span class="t">핵심 발상</span>
+  <p>
+    잘 만들어진 슬라이드 한 장은 <b>“내용이 채워진 빈 칸들”</b>이다.
+    그렇다면 그 슬라이드를 통째로 복제한 뒤, 각 빈 칸의 <em>문단 텍스트만</em> 새 내용으로 바꾸면
+    디자인은 원본 그대로면서 내용은 완전히 새로운 슬라이드가 된다.
+  </p>
+</div>
+
+<p>
+아래 그림에서 이 발상을 시각적으로 보자. 이 글 전체에서 슬라이드는 이런 <b>카드</b>로 그린다:
+초록 막대 = 제목, 회색 막대 = 텍스트 문단, 빗금 상자 = 이미지, 주황 테두리 = 기능성 슬라이드.
+</p>
+
+<div class="legend">
+  <span><i style="background:var(--green)"></i> 제목 문단</span>
+  <span><i style="background:#c9d2cc"></i> 본문 문단</span>
+  <span><i style="background:repeating-linear-gradient(45deg,#dbe7ee,#dbe7ee 3px,#cddde7 3px,#cddde7 6px); border-color:var(--blue-line)"></i> 이미지</span>
+  <span><i style="background:#fffdf7; border-color:var(--amber-line)"></i> 기능성 슬라이드</span>
+</div>
+
+<div style="display:flex; flex-wrap:wrap; align-items:center; gap:18px; margin:24px 0">
+  <div>
+    <div class="slidecard" style="width:170px">
+      <div class="sc-n">4</div>
+      <div class="sc-title mid"></div>
+      <div class="sc-line w90"></div>
+      <div class="sc-line w70"></div>
+      <div class="sc-line w90"></div>
+      <div class="sc-line w50"></div>
+      <div class="sc-cap">참조 슬라이드<br>(원본 내용 그대로)</div>
+    </div>
+  </div>
+  <div style="font-size:1.6rem; color:var(--ink-faint)">→</div>
+  <div style="flex:1 1 220px; min-width:200px">
+    <pre class="light"><code>elements = [
+  { name: "main title",
+    type: "text",
+    data: ["이 페이지의 제목..."] },
+  { name: "main bullets",
+    type: "text",
+    data: ["항목1 …", "항목2",
+           "항목3", "항목4"] },
+]</code></pre>
+    <p class="footnote" style="margin:0">추출된 “빈 칸 목록” = 스키마</p>
+  </div>
+  <div style="font-size:1.6rem; color:var(--ink-faint)">→</div>
+  <div>
+    <div class="slidecard pick" style="width:170px">
+      <div class="sc-n">✓</div>
+      <div class="sc-title mid"></div>
+      <div class="sc-line w90"></div>
+      <div class="sc-line w70"></div>
+      <div class="sc-line w90"></div>
+      <div class="sc-line w50"></div>
+      <div class="sc-line w70"></div>
+      <div class="sc-cap">생성 슬라이드<br>(같은 배치 · 새 내용)</div>
+    </div>
+  </div>
+</div>
+
+<p>
+오른쪽 카드에 회색 막대가 하나 늘어난 걸 눈치채셨는지. 원본은 항목 4개였는데 새 내용은 5개다.
+그럴 땐 문단을 <b>복제</b>한다 — 새로 만드는 게 아니라, 기존 문단의 XML을 그대로 복사해서 붙이므로
+글꼴·색·글머리 기호·들여쓰기가 전부 따라온다. 이것이 “갈아끼우기”가 “새로 그리기”보다 훨씬 안전한 이유다.
+</p>
+
+<h3>그런데 왜 “카탈로그”가 필요한가</h3>
+
+<p>
+참조 덱에 슬라이드가 30장 있다고 하자. 새 발표자료를 만들 때 30장을 다 쓰지는 않는다.
+그중에는 <em>본질적으로 같은 배치</em>가 여러 번 반복되기도 한다 — 예를 들어 “제목 + 왼쪽 글머리 + 오른쪽 그림” 형태가
+5번 나올 수 있다. 그렇다면 그 5장을 하나의 <b>레이아웃</b>으로 묶고, 대표 한 장만 골라 두면 된다.
+</p>
+
+<div class="clusterbox">
+  <span class="lbl">layout: "Bullet list on left, screenshot on right:image" — slides [6, 11, 14], template_id = 11</span>
+  <div class="deck" style="margin:0">
+    <div class="slidecard ghost"><div class="sc-n">6</div><div class="sc-title short"></div><div class="sc-line w70"></div><div class="sc-line w50"></div><div class="sc-img"></div></div>
+    <div class="slidecard pick"><div class="sc-n">11</div><div class="sc-title mid"></div><div class="sc-line w90"></div><div class="sc-line w70"></div><div class="sc-line w50"></div><div class="sc-img"></div><div class="sc-cap">대표 (도형 수 최다)</div></div>
+    <div class="slidecard ghost"><div class="sc-n">14</div><div class="sc-title short"></div><div class="sc-line w70"></div><div class="sc-img"></div></div>
+  </div>
+</div>
+
+<p>
+그래서 Stage I이 하는 일은 결국 <b>“이 덱에는 몇 종류의 배치가 있고, 각 배치의 대표는 몇 번 슬라이드이며,
+그 배치에는 어떤 빈 칸이 있는가”</b>를 알아내 JSON으로 적어 두는 것이다. 이것이 카탈로그다.
+</p>
+
+<div class="qmemo" data-qid="intuition-core" data-status="open">
+  <div class="qmemo-head">
+    <span class="qmemo-label">질문 메모</span>
+    <span class="qmemo-hint">이 부분에서 궁금한 점을 적어보세요. 저장하면 이 파일에 그대로 남습니다.</span>
+  </div>
+  <div class="qmemo-question" contenteditable="true"
+       data-placeholder="여기에 질문을 적어보세요..."></div>
+  <div class="qmemo-answer" hidden></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2 id="storage"><span class="num">03</span>템플릿은 정확히 어떻게 저장되는가</h2>
+
+<p>
+템플릿 하나는 <b>디렉터리 하나</b>다. 데이터베이스도, 임베딩 인덱스도 없다. 그냥 폴더다.
+<span class="pathref">pptagent/templates/</span> 아래에 현재 여섯 개가 들어 있다:
+<code>beamer</code>, <code>cip</code>, <code>default</code>, <code>hit</code>, <code>thu</code>, <code>ucas</code>.
+</p>
+
+<ul class="tree">
+  <li>📁 <span class="fname">pptagent/templates/beamer/</span>
+    <ul>
+      <li>📄 <span class="fname">source.pptx</span> <span class="note">— 참조 발표자료 원본. <b>실제 슬라이드가 여기서 복제된다.</b></span></li>
+      <li>📄 <span class="fname">slide_induction.json</span> <span class="note">— 레이아웃 카탈로그. 이 글의 주인공.</span></li>
+      <li>📄 <span class="fname">image_stats.json</span> <span class="note">— 이미지별 크기·등장 횟수·<b>VLM 캡션</b></span></li>
+      <li>📁 <span class="fname">images/</span> <span class="note">— 추출된 이미지 파일 (SHA1 파일명)</span></li>
+      <li>📄 <span class="fname">description.txt</span> <span class="note">— 사람이 쓴 한 문단 설명. LLM에게 템플릿을 고르라고 보여줄 때 쓴다.</span></li>
+    </ul>
+  </li>
+</ul>
+
+<p>
+<code>description.txt</code>는 정말 그냥 산문이다. beamer 템플릿의 전문은 이렇다:
+</p>
+
+<pre class="light"><code>A LaTeX Beamer-style template suitable for academic presentations, technical
+talks, and conferences. Uses typical Beamer layout and typography for slides
+with equations, figures, and structured sections.</code></pre>
+
+<p>
+MCP 서버의 <code>list_templates</code> 도구가 이 문장들을 그대로 모아 LLM에게 반환한다.
+템플릿 선택은 임베딩 검색이 아니라 “설명 읽고 골라”다.
+</p>
+
+<h3>slide_induction.json — 카탈로그의 실제 모양</h3>
+
+<p>
+이 파일이 템플릿 저장의 핵심이다. 최상위는 평평한 dict이고, 키는 세 종류가 섞여 있다.
+</p>
+
+<div class="tablescroll">
+<table>
+  <thead><tr><th>키 종류</th><th>예시</th><th>값</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><b>기능성 레이아웃</b><br>(고정 4종 중 존재하는 것)</td>
+      <td><code>"opening"</code>, <code>"table of contents"</code>,<br><code>"section outline"</code>, <code>"ending"</code></td>
+      <td>레이아웃 객체</td>
+    </tr>
+    <tr>
+      <td><b>내용 레이아웃</b><br>(개수 가변)</td>
+      <td><code>"Labeled Diagram on Left with Explanatory Paragraph on Right:image"</code></td>
+      <td>레이아웃 객체</td>
+    </tr>
+    <tr>
+      <td><b>메타 키</b> 2개</td>
+      <td><code>"functional_keys"</code> / <code>"language"</code></td>
+      <td><code>["opening", ...]</code> / <code>{"lid": "zh"}</code></td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="callout info">
+  <span class="t">내용 레이아웃 키의 문법: <code>"&lt;배치 설명문&gt;:&lt;text|image&gt;"</code></span>
+  <p>
+    콜론 앞은 <b>비전 모델이 렌더된 슬라이드 그림을 보고 지어낸 한 줄 배치 설명</b>이고,
+    콜론 뒤는 <b>코드가 기계적으로 붙인 접미사</b>다 —
+    <code>SlidePage.get_content_type()</code>이 Picture 도형 존재 여부만 보고 <code>"image"</code> / <code>"text"</code>를 반환한다
+    (<span class="pathref">presentation/presentation.py:182</span>).
+    이 접미사가 나중에 “그림 있는 슬라이드용 레이아웃 목록”과 “글만 있는 레이아웃 목록”을 가르는 유일한 기준이 된다.
+  </p>
+</div>
+
+<p>
+실제 파일 일부다 (<span class="pathref">templates/beamer/slide_induction.json</span>):
+</p>
+
+<pre><code>{
+  "opening": {
+    "slides": [1],
+    "template_id": 1,
+    "elements": [
+      { "name": "presenters and department", "type": "text",
+        "data": ["潘伟洲(josephpan)", "SNG-社交平台部-空间运营中心 "] },
+      { "name": "date",       "type": "text", "data": ["2025/4/30"] },
+      { "name": "main title", "type": "text", "data": ["移动客户端通道面试陈述"] }
+    ]
+  },
+
+  "Labeled Diagram on Left with Explanatory Paragraph on Right:image": {
+    "template_id": 3,
+    "slides": [3],
+    "elements": [
+      { "name": "main title",     "type": "text",  "data": ["个人经历"] },
+      { "name": "main paragraph", "type": "text",  "data": ["这张图展示了一个倾斜圆盘…"] },
+      { "name": "main image",     "type": "image",
+        "data": ["Diagram: Illustration of a coordinate system showing a tilted angle θ…"] }
+    ]
+  },
+
+  "functional_keys": ["opening", "table of contents", "ending"],
+  "language": { "lid": "zh" }
+}</code></pre>
+
+<p>레이아웃 객체의 필드는 이게 전부다:</p>
+
+<div class="keyval">
+  <dt>template_id</dt>
+  <dd><b>1부터 시작하는</b> 슬라이드 번호. 이 레이아웃을 쓸 때 <code>source.pptx</code>의 몇 번째 슬라이드를 복제할지.</dd>
+  <dt>slides</dt>
+  <dd>이 레이아웃으로 묶인 슬라이드 번호들. 생성 시에는 쓰이지 않고 분석 흔적으로 남는다.</dd>
+  <dt>elements[]</dt>
+  <dd>빈 칸 목록. 각 원소는 <code>{name, type, data}</code>.</dd>
+</div>
+
+<h3>element의 <code>data</code>가 “원본 내용”인 이유</h3>
+
+<p>
+처음 보면 이상하다. 왜 카탈로그에 <b>원본 슬라이드의 실제 문구</b>가 그대로 들어 있는가?
+빈 칸 정의라면 이름과 타입만 있으면 될 것 같은데.
+</p>
+
+<p>세 가지 용도가 있고, 셋 다 생성 단계에서 결정적이다.</p>
+
+<ol>
+  <li>
+    <b>길이 예산</b>. 런타임 모델 <code>Element</code>(<span class="pathref">presentation/layout.py:29</span>)는
+    로드 시 <code>suggested_characters = max(len(i) for i in self.data)</code>를 계산한다.
+    “여기에 들어갈 텍스트는 대략 이 길이여야 안 넘친다”는 값이 JSON에 저장되지 않고 <em>매번 원본 문구에서 유도</em>된다.
+  </li>
+  <li>
+    <b>이미지 캡션 = 이미지 슬롯의 정체성</b>. 이미지 element의 <code>data</code>는 파일 경로가 아니라 <b>캡션 문장</b>이다.
+    <code>image_stats.json</code>에 저장된 VLM 캡션이 여기 복사되어 있다. 나중에 편집 명령을 만들 때
+    “원래 있던 그림(=이 캡션)을 새 그림으로 교체하라”는 뜻으로 쓰인다.
+  </li>
+  <li>
+    <b>편집 명령의 “before”</b>. 생성 시 만들어지는 명령 튜플이
+    <code>(이름, 타입, 수량변화, <b>old_content</b>, new_content)</code> 형태인데,
+    이 <code>old_content</code>가 바로 여기의 <code>data</code>다. 코더 LLM은 슬라이드 HTML에서
+    이 문구를 찾아 어느 <code>&lt;p&gt;</code>를 건드릴지 판단한다.
+  </li>
+</ol>
+
+<div class="callout warn">
+  <span class="t">저장되지 않는 것</span>
+  <p>
+    좌표, 글꼴, 색, 도형 ID는 <b>JSON에 없다</b>. 그 정보는 전부 <code>source.pptx</code> 안에 그대로 있고,
+    생성 시 그 슬라이드를 복제하는 것으로 자동 따라온다. JSON은 <em>“어느 슬라이드를 복제하고, 그 안의 어떤
+    문단들이 의미상 무엇인가”</em>만 기록한다. 카탈로그가 4~8KB밖에 안 되는 이유다.
+  </p>
+</div>
+
+<h3>image_stats.json</h3>
+
+<pre class="light"><code>{
+  "1df5f510a94dff77293458473e5407d97a31bdfe.png": {
+    "size": [784, 878],
+    "appear_times": 1,
+    "slide_numbers": [3],
+    "relative_area": 33.96,
+    "top_ranges_str": "3",
+    "caption": "Diagram: Illustration of a coordinate system showing a tilted
+                angle θ, with a yellow disk representing a cross-section…"
+  }
+}</code></pre>
+
+<p>
+파일명은 이미지 바이트의 SHA1이다 — 같은 그림이 여러 슬라이드에 있어도 파일은 하나로 합쳐진다.
+<code>caption</code>만이 LLM이 생성한 값이고 나머지는 계산값이다.
+로드 시 <code>ImageLabler.apply_stats()</code>가 이 캡션을 메모리상의 Picture 객체에 다시 붙인다
+(<span class="pathref">multimodal.py:32</span>). 캡션 없이는 슬라이드를 HTML로 직렬화할 때
+<code>Picture.to_html</code>이 예외를 던지므로, 이 파일은 선택 사항이 아니다.
+</p>
+
+<div class="callout warn">
+  <span class="t">스키마에는 있지만 이 저장소의 템플릿에는 없는 필드</span>
+  <p>
+    <code>Element</code>에는 <code>variable_length</code>, <code>variable_data</code>가,
+    <code>Layout</code>에는 <code>vary_mapping</code>이 정의되어 있다. “글머리 3개짜리와 5개짜리는
+    아예 다른 원본 슬라이드를 복제한다”는 기능이다. 하지만 <b>현재 저장소에서 이 필드를 채워 넣는 코드는 없고</b>
+    (<code>induct.py</code>가 생성하지 않는다), 여섯 템플릿 JSON 어디에도 등장하지 않는다.
+    <code>Layout.index_template_slide</code>의 해당 분기는 사실상 죽은 경로다.
+  </p>
+</div>
+
+<div class="qmemo" data-qid="storage-json-schema" data-status="open">
+  <div class="qmemo-head">
+    <span class="qmemo-label">질문 메모</span>
+    <span class="qmemo-hint">이 부분에서 궁금한 점을 적어보세요. 저장하면 이 파일에 그대로 남습니다.</span>
+  </div>
+  <div class="qmemo-question" contenteditable="true"
+       data-placeholder="여기에 질문을 적어보세요..."></div>
+  <div class="qmemo-answer" hidden></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2 id="induction"><span class="num">04</span>그 저장물은 어떻게 만들어지는가 (Stage I)</h2>
+
+<p>
+카탈로그를 만드는 클래스는 <code>SlideInducter</code>(<span class="pathref">pptagent/induct.py:37</span>)이고,
+그걸 돌리는 스크립트가 <span class="pathref">pptagent/scripts/template_induct.py</span>다.
+전체는 네 단계다.
+</p>
+
+<div class="flow">
+  <div class="node vlm">
+    <span class="k">0 · 비전 LLM</span>
+    <span class="n">이미지 캡션</span>
+    <span class="d">덱 안 모든 그림에 캡션을 달아 <code>image_stats.json</code> 생성</span>
+  </div>
+  <div class="arrow">→</div>
+  <div class="node llm">
+    <span class="k">1 · 언어 LLM</span>
+    <span class="n">category_split</span>
+    <span class="d">덱 전체 텍스트를 읽고 기능성 슬라이드(표지/목차/섹션/마무리)를 골라낸다</span>
+  </div>
+  <div class="arrow">→</div>
+  <div class="node det">
+    <span class="k">2 · 결정적 + 비전 LLM</span>
+    <span class="n">layout_split</span>
+    <span class="d">남은 슬라이드를 시각 임베딩으로 군집화하고, 대표 슬라이드에 배치 이름을 붙인다</span>
+  </div>
+  <div class="arrow">→</div>
+  <div class="node llm">
+    <span class="k">3 · 언어 LLM</span>
+    <span class="n">content_induct</span>
+    <span class="d">대표 슬라이드 HTML을 보고 element 목록(스키마)을 추출</span>
+  </div>
+</div>
+
+<h3>1단계 — 기능성 슬라이드 분리 (<code>category_split</code>)</h3>
+
+<p>
+입력은 덱 전체를 텍스트로 편 것이다. <code>Presentation.to_text()</code>가
+<code>"Slide 3 of 9\nTitle:…\n본문…\n----\n"</code> 형태로 이어붙인 문자열을 만든다.
+프롬프트는 <span class="pathref">prompts/category_split.txt</span>이고, 찾을 범주를 <b>정확히 네 개</b>로 못박는다.
+</p>
+
+<pre class="light"><code>출력 예:
+{
+  "opening": [1],
+  "table of contents": [2],
+  "section outline": [3, 7],
+  "ending": [12]
+}</code></pre>
+
+<p>
+코드는 이 결과를 뒤집어서 <em>언급되지 않은 모든 슬라이드 번호</em>를 “내용 슬라이드”로 삼는다
+(<span class="pathref">induct.py:107</span>). 기능성 슬라이드는 군집화를 거치지 않고 곧바로
+레이아웃이 된다 — 클러스터의 첫 슬라이드가 <code>template_id</code>가 된다.
+</p>
+
+<h3>2단계 — 내용 슬라이드 군집화 (<code>layout_split</code>)</h3>
+
+<p>
+여기가 가장 영리한 부분이다. 문제는 이것이다: <b>“배치가 같다”를 어떻게 기계가 판단하는가?</b>
+슬라이드 이미지를 그대로 비교하면 <em>내용</em>이 비슷한 것끼리 묶인다 — 우리가 원하는 건 그 반대다.
+</p>
+
+<p>해법은 슬라이드를 <b>두 벌</b> 렌더링하는 것이다.</p>
+
+<div style="display:flex; flex-wrap:wrap; gap:16px; margin:22px 0">
+  <div style="flex:1 1 240px; background:#fff; border:1px solid var(--line); border-radius:10px; padding:14px">
+    <div style="font-family:var(--mono); font-size:.76rem; color:var(--blue); margin-bottom:8px">ppt_image_folder ← source.pptx</div>
+    <div class="slidecard" style="width:100%">
+      <div class="sc-title mid"></div>
+      <div class="sc-line w90"></div><div class="sc-line w70"></div>
+      <div class="sc-img"></div>
+      <div class="sc-cap">진짜 내용이 보이는 렌더</div>
+    </div>
+    <p class="footnote">쓰임: <b>비전 모델에게 “이 배치를 뭐라 부를까?” 물을 때</b>. 진짜 그림이 보여야 설명이 정확하다.</p>
+  </div>
+  <div style="flex:1 1 240px; background:#fff; border:1px solid var(--line); border-radius:10px; padding:14px">
+    <div style="font-family:var(--mono); font-size:.76rem; color:var(--green); margin-bottom:8px">template_image_folder ← template.pptx</div>
+    <div class="slidecard" style="width:100%">
+      <div class="sc-title mid" style="background:#b9c3bd"></div>
+      <div class="sc-line w90"></div><div class="sc-line w70"></div>
+      <div class="sc-img" style="background:#eceee9; border-style:dashed"></div>
+      <div class="sc-cap">글자는 <code>aaa…</code>, 그림은 placeholder</div>
+    </div>
+    <p class="footnote">쓰임: <b>임베딩 · 군집화</b>. 내용이 지워졌으니 남은 유사도는 순수하게 배치 유사도다.</p>
+  </div>
+</div>
+
+<p>
+두 번째 벌은 <code>Presentation.save(path, layout_only=True)</code>가 만든다.
+<code>clear_images()</code>가 모든 그림 경로를 <code>resource/pic_placeholder.png</code>로 바꾸고,
+<code>clear_text()</code>가 모든 run의 텍스트를 <code>"a" * len(원문)</code>으로 치환한다
+(<span class="pathref">presentation/presentation.py:408–422</span>). 길이는 보존되므로 텍스트 블록의 크기감은 유지된다.
+그다음 LibreOffice로 JPG를 뽑고, ViT (<code>google/vit-base-patch16-224-in21k</code>)로 임베딩한다.
+</p>
+
+<p>군집화 자체는 두 겹이다.</p>
+
+<div class="flow">
+  <div class="node det">
+    <span class="k">거친 버킷</span>
+    <span class="n">(slide_layout_name, content_type)</span>
+    <span class="d">PPTX가 이미 알려주는 “레이아웃 이름” + 그림 유무로 먼저 나눈다. 공짜 신호다.</span>
+  </div>
+  <div class="arrow">→</div>
+  <div class="node det">
+    <span class="k">버킷 안에서</span>
+    <span class="n">코사인 유사도 → get_cluster(sim_bound=0.65)</span>
+    <span class="d">평균 연결 방식으로 탐욕적 병합. 0.65 미만이면 각자 독립 클러스터.</span>
+  </div>
+  <div class="arrow">→</div>
+  <div class="node det">
+    <span class="k">대표 선정</span>
+    <span class="n">max(len(slide.shapes))</span>
+    <span class="d">도형이 가장 많은 슬라이드를 <code>template_id</code>로. <b>가장 풍부한 예시</b>를 고르는 것.</span>
+  </div>
+  <div class="arrow">→</div>
+  <div class="node vlm">
+    <span class="k">비전 LLM</span>
+    <span class="n">ask_category</span>
+    <span class="d">대표의 <b>진짜</b> 렌더 이미지 1장 → 한 줄 배치 설명</span>
+  </div>
+</div>
+
+<div class="callout">
+  <span class="t">왜 “도형이 가장 많은” 슬라이드를 대표로 뽑는가</span>
+  <p>
+    빈 칸이 5개인 레이아웃은 3개만 채워서도 쓸 수 있지만, 빈 칸이 3개인 레이아웃에 5개를 채울 수는 없다.
+    가장 요소가 많은 슬라이드를 대표로 삼아야 <em>표현력의 상한</em>을 잃지 않는다.
+  </p>
+</div>
+
+<p>
+<code>ask_category.txt</code> 프롬프트는 노골적으로 <b>내용을 말하지 말라</b>고 지시한다:
+“HOW content is structured에 집중하고, 구체적 주제나 내용 설명은 피하라.” 그래서 나오는 출력이
+<code>"Two Landscape Images with Descriptive Text Below Each"</code> 같은 문장이다.
+여기에 <code>":" + content_type</code>을 붙여 최종 키가 된다.
+</p>
+
+<div class="qmemo" data-qid="induction-two-renders" data-status="open">
+  <div class="qmemo-head">
+    <span class="qmemo-label">질문 메모</span>
+    <span class="qmemo-hint">두 벌 렌더링 그림에서 헷갈리는 점이 있으면 여기에.</span>
+  </div>
+  <div class="qmemo-question" contenteditable="true"
+       data-placeholder="여기에 질문을 적어보세요..."></div>
+  <div class="qmemo-answer" hidden></div>
+</div>
+
+<h3>3단계 — 스키마 추출 (<code>content_induct</code>)</h3>
+
+<p>
+이제 레이아웃마다 대표 슬라이드가 정해졌다. 마지막으로 그 슬라이드의 <b>빈 칸에 이름을 붙인다.</b>
+</p>
+
+<p>
+입력은 슬라이드를 HTML로 직렬화한 것이다. <code>SlidePage.to_html()</code>이 만드는 형태는 이렇다 —
+좌표와 글꼴이 인라인 스타일로, 문단은 <code>&lt;p id='n'&gt;</code>로, 그림은 <code>&lt;img alt='캡션'&gt;</code>로:
+</p>
+
+<pre><code>&lt;div id="0" style="font-size: 32pt; top: 50pt; left: 100pt; width: 500pt; font-weight: bold;"&gt;
+  &lt;p id="0"&gt;个人经历&lt;/p&gt;
+&lt;/div&gt;
+&lt;div id="1" style="font-size: 14pt; top: 150pt; left: 600pt; width: 300pt;"&gt;
+  &lt;p id="0"&gt;这张图展示了一个倾斜圆盘在空间中的几何关系…&lt;/p&gt;
+&lt;/div&gt;
+&lt;img id="2" alt="Diagram: Illustration of a coordinate system showing a tilted angle θ…"/&gt;</code></pre>
+
+<p>
+<code>schema_extractor</code> 에이전트(<span class="pathref">roles/schema_extractor.yaml</span>)가 이걸 받아
+element 목록을 뱉는다. 프롬프트는 이름을 지을 때 <b>역할과 위치</b>를 쓰라고 지시한다:
+“section/main/sub title”, “left/right bullets”, “portrait/landscape image”, “slide/section number” 등.
+그래서 <code>"main title"</code>, <code>"explanation bullets"</code>, <code>"slide number"</code> 같은 이름이 나온다.
+</p>
+
+<div class="callout info">
+  <span class="t">중요한 안전장치 — LLM이 내용을 지어내지 못하게 막는 법</span>
+  <p>
+    스키마 추출은 <em>내용을 새로 쓰는 작업이 아니라 분류 작업</em>이다. 그런데 LLM은 중국어 원문을 옮겨 적다가
+    오타를 내거나 요약해 버리기 쉽다. 이 코드는 그걸 타입 시스템 수준에서 막는다
+    (<span class="pathref">response/induct.py</span>):
+  </p>
+  <pre class="light" style="margin-top:10px"><code>_allowed_contents = ContextVar("allowed_contents")
+
+class SlideElement(BaseModel):
+    name: str
+    data: list[str]
+    type: Literal["text", "image"]
+
+    def model_post_init(self, _):
+        # LLM이 뭘 적었든, 허용된 원본 문자열 중 가장 가까운 것으로 스냅
+        self.data = [
+            max(_allowed_contents.get(), key=lambda x: edit_distance(x, d))
+            for d in self.data
+        ]</code></pre>
+  <p>
+    허용 목록은 호출 측에서 <code>[모든 문단 텍스트] + [모든 그림 캡션]</code>으로 세팅된다
+    (<span class="pathref">induct.py:190</span>). 결과적으로 <code>data</code>는 <b>반드시</b> 원본에 실재하는 문자열이 된다.
+    LLM이 결정하는 건 오직 <em>이름</em>과 <em>그룹핑</em>뿐이다.
+  </p>
+</div>
+
+<p>
+마지막으로 <code>language_id()</code>가 fastText <code>lid.176</code> 모델로 언어 코드를 뽑아
+<code>{"lid": "zh"}</code>를 붙이면 카탈로그가 완성되고, JSON으로 저장된다.
+</p>
+
+<div class="qmemo" data-qid="induction-schema-extract" data-status="open">
+  <div class="qmemo-head">
+    <span class="qmemo-label">질문 메모</span>
+    <span class="qmemo-hint">이 부분에서 궁금한 점을 적어보세요. 저장하면 이 파일에 그대로 남습니다.</span>
+  </div>
+  <div class="qmemo-question" contenteditable="true"
+       data-placeholder="여기에 질문을 적어보세요..."></div>
+  <div class="qmemo-answer" hidden></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2 id="generate"><span class="num">05</span>저장된 템플릿으로 슬라이드를 만드는 과정 (Stage II)</h2>
+
+<p>
+이제 반대 방향이다. 카탈로그와 <code>source.pptx</code>가 주어졌을 때 새 슬라이드는 어떻게 나오는가.
+</p>
+
+<h3>준비: <code>set_reference()</code></h3>
+
+<p>
+<span class="pathref">pptgen.py:90</span>의 이 메서드가 JSON을 살아 있는 객체로 바꾼다.
+</p>
+
+<pre class="light"><code>self.reference_lang    = Language(**slide_induction.pop("language"))     # {"lid": "zh"}
+self.functional_layouts = slide_induction.pop("functional_keys")         # ["opening", ...]
+self.layouts = {k: Layout(title=k, **v) for k, v in slide_induction.items()}
+self.empty_prs = deepcopy(self.presentation)                              # 결과물을 담을 빈 덱
+
+self.text_layouts       = [k for k in self.layouts if k.endswith("text")  and k not in functional]
+self.multimodal_layouts = [k for k in self.layouts if not k.endswith("text") and k not in functional]</code></pre>
+
+<p>주목할 두 가지가 있다.</p>
+
+<p>
+<b>첫째, <code>empty_prs</code>는 “빈 덱”이 아니라 원본의 깊은 복사본이다.</b>
+<code>Presentation.__post_init__</code>이 원본 파일을 다시 열어 <code>slide_layouts</code> 매핑을 만들어 두므로,
+이 객체는 <em>테마·마스터·글꼴 정의를 전부 지닌 채</em> 슬라이드 목록만 갈아끼울 수 있는 껍데기다.
+마지막에 <code>empty_prs.slides = 생성된_슬라이드들</code>을 대입하고 <code>save()</code>하면, <code>clear_slides()</code>가
+기존 슬라이드를 다 떼어내고 새 슬라이드를 각자의 원래 레이아웃 위에 다시 짓는다.
+</p>
+
+<p>
+<b>둘째, <code>_hide_small_pics(0.2)</code>가 실행된다.</b> 슬라이드 면적의 20% 미만인 그림 —
+로고, 장식용 아이콘 — 은 <code>shapes</code>에서 빠져 <code>backgrounds</code>로 옮겨지고,
+레이아웃의 element 목록에서도 제거된다. 채워야 할 슬롯이 아니라 배경의 일부로 취급하는 것이다.
+그 결과 어떤 레이아웃의 그림이 전부 사라지면 키의 <code>:image</code>가 <code>:text</code>로 바뀐다
+(<span class="pathref">pptgen.py:340</span>).
+</p>
+
+<h3>슬라이드 한 장이 만들어지는 전체 흐름</h3>
+
+<div class="flow">
+  <div class="node llm"><span class="k">LLM</span><span class="n">① 레이아웃 선택</span><span class="d">layout_selector — 어느 배치를 쓸지</span></div>
+  <div class="arrow">→</div>
+  <div class="node llm"><span class="k">LLM</span><span class="n">② 내용 작성</span><span class="d">editor — element별 문자열 배열</span></div>
+  <div class="arrow">→</div>
+  <div class="node det"><span class="k">코드</span><span class="n">③ 검증 · 길이 조정</span><span class="d">Layout.validate + length_rewrite</span></div>
+  <div class="arrow">→</div>
+  <div class="node det"><span class="k">코드</span><span class="n">④ 명령 목록</span><span class="d">(이름, 타입, 수량변화, old, new)</span></div>
+  <div class="arrow">→</div>
+  <div class="node llm"><span class="k">LLM</span><span class="n">⑤ 코드 생성</span><span class="d">coder — API 호출문</span></div>
+  <div class="arrow">→</div>
+  <div class="node det"><span class="k">코드</span><span class="n">⑥ 실행 · 재시도</span><span class="d">CodeExecutor → SlidePage</span></div>
+</div>
+
+<h4>③→④ 명령 목록 만들기 — 구체적인 예</h4>
+
+<p>
+beamer 템플릿의 레이아웃
+<code>"Single Top Banner Title with Left-Aligned Bulleted List and Paragraph:text"</code>
+(<code>template_id: 4</code>)를 골랐다고 하자. 카탈로그상 이 레이아웃의 빈 칸은 둘이다:
+<code>main title</code>(1개), <code>main bullets</code>(4개).
+</p>
+
+<p>editor LLM이 이런 걸 내놓는다:</p>
+
+<pre class="light"><code>{
+  "elements": [
+    { "name": "main title",   "data": ["RAG 파이프라인 개요"] },
+    { "name": "main bullets", "data": ["문서를 청크로 분할",
+                                       "임베딩 후 벡터 DB 저장",
+                                       "질의와 유사한 청크 검색",
+                                       "LLM 프롬프트에 삽입",
+                                       "답변 생성"] }
+  ]
+}</code></pre>
+
+<p>
+<code>_generate_commands()</code>가 이걸 원본과 짝지어 명령 튜플로 바꾼다
+(<span class="pathref">pptgen.py:573</span>). 핵심은 <code>quantity_change = len(new) - len(old)</code>다:
+</p>
+
+<pre><code>("main title",   "text", "quantity_change: 0",
+    ["这页的标题，哎呀呀，标题是什么呢"],
+    ["RAG 파이프라인 개요"])
+
+("main bullets", "text", "quantity_change: 1",
+    ["项目1, 我们需要进入一些details…", "项目2", "项目3", "项目4"],
+    ["문서를 청크로 분할", "임베딩 후 벡터 DB 저장", "질의와 유사한 청크 검색",
+     "LLM 프롬프트에 삽입", "답변 생성"])</code></pre>
+
+<div class="callout warn">
+  <span class="t">스키마의 element를 editor가 빠뜨리면</span>
+  <p>
+    <code>_generate_commands</code>는 <b>레이아웃 쪽 element 전체</b>를 순회하며,
+    editor 출력에 없는 이름은 <code>new_content = []</code>로 둔다. 그러면 <code>quantity_change</code>가 음수가 되어
+    그 문단들은 <b>삭제 명령</b>이 된다. 즉 “안 쓰는 슬롯은 지워라”가 자동으로 표현된다.
+  </p>
+</div>
+
+<h4>⑤ coder — 명령을 실제 API 호출로</h4>
+
+<p>
+<code>coder</code> 에이전트에 세 가지가 들어간다:
+</p>
+
+<div class="keyval">
+  <dt>api_docs</dt>
+  <dd><code>CodeExecutor.get_apis_docs()</code>가 <code>inspect</code>로 실제 함수 시그니처와 docstring을 뽑아 만든 문서.
+      쓸 수 있는 함수는 5개뿐: <code>replace_paragraph</code>, <code>clone_paragraph</code>, <code>del_paragraph</code>,
+      <code>replace_image</code>, <code>del_image</code>.</dd>
+  <dt>edit_target</dt>
+  <dd><b>대표 슬라이드의 HTML</b>. <code>div id</code>와 <code>p id</code>가 곧 API 인자다.</dd>
+  <dt>command_list</dt>
+  <dd>위에서 만든 튜플들을 문자열로 이어붙인 것.</dd>
+</div>
+
+<p>출력은 JSON이 아니라 <b>파이썬 호출문 여러 줄</b>이다:</p>
+
+<pre><code># ("main title", "text", "quantity_change: 0", [...], ["RAG 파이프라인 개요"])
+replace_paragraph(0, 0, "RAG 파이프라인 개요")
+
+# ("main bullets", "text", "quantity_change: 1", [...4개...], [...5개...])
+clone_paragraph(1, 3)   # 새 paragraph_id 는 현재 최대(3) + 1 = 4
+replace_paragraph(1, 0, "문서를 청크로 분할")
+replace_paragraph(1, 1, "임베딩 후 벡터 DB 저장")
+replace_paragraph(1, 2, "질의와 유사한 청크 검색")
+replace_paragraph(1, 3, "LLM 프롬프트에 삽입")
+replace_paragraph(1, 4, "답변 생성")</code></pre>
+
+<p>
+첫 인자 <code>0</code>, <code>1</code>은 HTML의 <code>div id</code>, 둘째 인자는 그 안의 <code>p id</code>다.
+LLM이 element 이름과 도형 ID를 잇는 다리 역할을 하는 셈이다.
+</p>
+
+<h4>⑥ 실행 — 그리고 “지연된 편집”</h4>
+
+<p>
+<code>CodeExecutor.execute_actions()</code>가 한 줄씩 <code>eval</code>한다. 안전장치가 몇 겹 있다:
+</p>
+
+<ul>
+  <li><code>SAFE_EVAL_GLOBALS = {"__builtins__": {}}</code> — 내장 함수 접근 차단.</li>
+  <li>등록된 5개 함수 외 호출은 <code>SlideEditError</code>.</li>
+  <li><code>def</code>로 시작하는 줄(함수 정의) 금지.</li>
+  <li>한 명령 블록 안에서 <code>clone_*</code>과 <code>del_*</code>을 섞으면 거부 — 수량 변화 방향이 하나여야 한다.</li>
+</ul>
+
+<p>
+그런데 여기서 가장 중요한 설계는 따로 있다. API 함수들은 <b>실제 PPTX를 즉시 고치지 않는다.</b>
+예를 들어 <code>replace_paragraph</code>는 가벼운 <code>Paragraph</code> 객체의 텍스트를 바꾸고,
+동시에 <b>클로저를 큐에 쌓는다</b>(<span class="pathref">apis.py:403</span>):
+</p>
+
+<pre class="light"><code>para.text = text
+shape._closures[ClosureType.REPLACE].append(
+    Closure(partial(replace_para, para.real_idx, text), para.real_idx)
+)
+para.edited = True</code></pre>
+
+<p>
+이 클로저는 나중에 <code>SlidePage.build()</code>에서 <em>진짜 python-pptx 도형</em>에 대해 실행된다.
+그때서야 마크다운을 파싱해 <code>**굵게**</code>를 별도 run으로 쪼개고, 하이퍼링크를 달고, 서식을 유지한 채 텍스트를 쓴다.
+편집을 “의도의 목록”으로 미뤄 두었다가 마지막에 한 번에 적용하는 것 — 그래서 재시도가 깨끗하다.
+</p>
+
+<div class="callout">
+  <span class="t">재시도가 오염되지 않는 이유</span>
+  <p>
+    <code>_edit_slide</code>의 재시도 루프는 매 시도마다
+    <code>edit_slide = deepcopy(self.presentation.slides[template_id - 1])</code>로 <b>템플릿 슬라이드를 처음부터 다시 복사</b>한다
+    (<span class="pathref">pptgen.py:508</span>). 앞선 시도에서 절반쯤 적용된 상태가 남지 않는다.
+    실패 시 coder에게 넘기는 피드백은 <b>오류 줄에 <code>--&gt; Error Line:</code> 표시를 박은 코드 전문 + traceback</b>이다.
+  </p>
+</div>
+
+<h4>마지막 청소: <code>validate()</code></h4>
+
+<p>
+LLM이 어떤 문단을 그냥 잊어버렸다면? 그 문단에는 원본 템플릿의 중국어 문구가 그대로 남아 있을 것이다.
+<code>Presentation.validate()</code>가 이걸 막는다(<span class="pathref">presentation/presentation.py:378</span>):
+</p>
+
+<pre class="light"><code>for shape in slide:
+    for para in shape.text_frame.paragraphs:
+        if not para.edited and para.idx != -1:
+            shape._closures[ClosureType.POST_PROCESS].append(
+                Closure(partial(del_para, para.real_idx), para.real_idx)
+            )</code></pre>
+
+<p>
+<b><code>edited</code> 플래그가 찍히지 않은 문단은 전부 삭제된다.</b> 잔재가 새어 나올 여지를 원천 봉쇄하는,
+단순하고 무자비한 규칙이다.
+</p>
+
+<h3>덱 전체로 확장하기</h3>
+
+<p>
+<code>generate_pres()</code>는 개요(outline)의 항목마다 위 과정을 <code>asyncio.gather</code>로 <b>동시에</b> 돌린다.
+슬라이드 간 의존이 없기 때문에 가능하다 (<code>max_at_once</code>로 세마포어를 걸 수 있다).
+</p>
+
+<p>
+기능성 슬라이드는 개요 생성 후 <b>규칙 기반</b>으로 끼워 넣는다(<code>_add_functional_layouts</code>).
+목차는 0번 위치, 표지는 그 앞, 마무리는 끝, 섹션 표지는 주제가 바뀌는 지점마다.
+이때 카탈로그의 기능성 키 이름과 표준 이름을 <code>edit_distance &gt; 0.7</code>로 매칭하므로,
+템플릿에 해당 레이아웃이 없으면 그냥 건너뛴다.
+</p>
+
+<div class="qmemo" data-qid="generate-pipeline" data-status="open">
+  <div class="qmemo-head">
+    <span class="qmemo-label">질문 메모</span>
+    <span class="qmemo-hint">명령 목록 → API 호출 → 클로저 흐름에서 막히는 부분을 적어 두세요.</span>
+  </div>
+  <div class="qmemo-question" contenteditable="true"
+       data-placeholder="여기에 질문을 적어보세요..."></div>
+  <div class="qmemo-answer" hidden></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2 id="llm"><span class="num">06</span>LLM은 어디에서, 무엇을 받고 무엇을 뱉는가</h2>
+
+<p>
+지금까지 LLM 호출이 산발적으로 등장했으니 한자리에 모아 보자. 이 시스템에서 LLM 호출은
+전부 <code>Agent</code> 클래스(<span class="pathref">pptagent/agent.py:55</span>)를 거친다.
+에이전트 하나는 <code>roles/&lt;이름&gt;.yaml</code> 파일 하나에 대응하고, 그 YAML에는
+<code>system_prompt</code>, Jinja2 <code>template</code>, 필수 인자 목록 <code>jinja_args</code>,
+쓸 모델 종류 <code>use_model</code>(language/vision), <code>return_json</code>이 들어 있다.
+</p>
+
+<div class="callout info">
+  <span class="t">인자 누락은 조용히 넘어가지 않는다</span>
+  <p>
+    <code>Agent.__call__</code>은 <code>assert self.prompt_args == set(jinja_args.keys())</code>로
+    <b>정확히 일치</b>를 요구하고, Jinja 환경은 <code>StrictUndefined</code>다.
+    프롬프트에 빈 칸이 남은 채 모델로 나가는 일이 구조적으로 불가능하다.
+  </p>
+</div>
+
+<div class="tablescroll">
+<table>
+  <thead>
+    <tr><th>단계</th><th>역할</th><th>모델</th><th>입력</th><th>출력</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td rowspan="4"><b>Stage I</b><br>(템플릿당 1회)</td>
+      <td>이미지 캡션<br><code>prompts/caption.txt</code></td>
+      <td>vision</td>
+      <td>이미지 파일 1장</td>
+      <td>자유 텍스트 캡션 → <code>image_stats.json</code></td>
+    </tr>
+    <tr>
+      <td><code>category_split</code></td>
+      <td>language</td>
+      <td>덱 전체 텍스트 (<code>prs.to_text()</code>)</td>
+      <td>JSON <code>{범주: [슬라이드번호]}</code></td>
+    </tr>
+    <tr>
+      <td><code>ask_category</code></td>
+      <td>vision</td>
+      <td>대표 슬라이드 렌더 JPG 1장</td>
+      <td>한 줄 배치 설명문 (레이아웃 키가 됨)</td>
+    </tr>
+    <tr>
+      <td><code>schema_extractor</code></td>
+      <td>language</td>
+      <td>슬라이드 HTML + 슬라이드 번호</td>
+      <td><code>SlideSchema</code> — <code>elements[]</code>. <b>data는 원본 문자열로 스냅됨</b></td>
+    </tr>
+    <tr>
+      <td rowspan="6"><b>Stage II</b><br>(생성마다)</td>
+      <td><code>planner</code></td>
+      <td>language</td>
+      <td>슬라이드 수, 문서 개요(섹션/서브섹션/이미지 목록)</td>
+      <td><code>Outline</code> — 슬라이드별 <code>{purpose, topic, indexes, images}</code></td>
+    </tr>
+    <tr>
+      <td><code>content_organizer</code></td>
+      <td>language</td>
+      <td>해당 슬라이드용으로 검색된 원문 단락들</td>
+      <td>키포인트 JSON — 항목마다 <code>paragraphForm</code>과 <code>bulletForm</code> 두 벌</td>
+    </tr>
+    <tr>
+      <td><code>layout_selector</code></td>
+      <td>language</td>
+      <td>전체 개요, 슬라이드 설명, 키포인트, 후보 레이아웃 목록</td>
+      <td><code>{reasoning, layout}</code> — layout은 <code>Literal[후보들]</code>로 제약</td>
+    </tr>
+    <tr>
+      <td><code>editor</code></td>
+      <td>language</td>
+      <td>개요, 문서 메타데이터, 슬라이드 설명, 키포인트, <b>content_schema</b>, 목표 언어 코드</td>
+      <td><code>EditorOutput</code> — <code>[{name, data[]}]</code>. name은 <code>Literal[레이아웃 element 이름들]</code></td>
+    </tr>
+    <tr>
+      <td>길이 재작성<br><code>lengthy_rewrite.txt</code></td>
+      <td>language</td>
+      <td>넘친 element의 문자열 배열 + 목표 글자 수</td>
+      <td>같은 개수의 짧아진 문자열 배열</td>
+    </tr>
+    <tr>
+      <td><code>coder</code></td>
+      <td>language</td>
+      <td>API 문서, 대표 슬라이드 HTML, 명령 목록</td>
+      <td>파이썬 호출문 텍스트 (<code>return_json: false</code>)</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<h3>구조적 출력이 이 시스템을 지탱한다</h3>
+
+<p>
+표에서 “<code>Literal[…]</code>로 제약”이라고 적은 부분들이 이 코드베이스의 특징적인 기법이다.
+프롬프트로 “있는 레이아웃 중에서만 골라”라고 <em>부탁</em>하는 대신,
+pydantic 모델을 런타임에 만들어 <b>다른 값을 낼 수 없게</b> 한다
+(<span class="pathref">response/pptgen.py</span>):
+</p>
+
+<pre class="light"><code>class LayoutChoice(BaseModel):
+    reasoning: str
+    layout: str
+
+    @classmethod
+    def response_model(cls, layouts: list[str]):
+        return create_model(
+            cls.__name__,
+            reasoning=(str, Field(...)),
+            layout=(Literal[*layouts], Field(...)),   # ← 여기
+            __base__=BaseModel,
+        )</code></pre>
+
+<p>같은 기법이 세 군데 더 쓰인다:</p>
+
+<div class="keyval">
+  <dt>EditorOutput</dt>
+  <dd>element <code>name</code>이 그 레이아웃의 실제 element 이름만 될 수 있다.</dd>
+  <dt>OutlineItem</dt>
+  <dd><code>indexes</code>의 섹션/서브섹션 제목이 <b>문서에 실재하는 제목</b>만, <code>images</code>가 <b>실재하는 이미지 경로</b>만 될 수 있다.
+      (이미지가 하나도 없으면 <code>Literal</code> 대신 <code>str</code>로 두고, <code>model_post_init</code>이 목록을 비운다.)</dd>
+  <dt>SlideSchema</dt>
+  <dd>앞서 본 edit_distance 스냅. Literal이 아니라 사후 보정이지만 목적은 같다.</dd>
+</div>
+
+<p>
+Literal로 막을 수 없는 것 — 이미지 경로처럼 값이 길고 오타가 잦은 것 — 은 <b>사후 스냅</b>으로 처리한다.
+<code>Layout.validate()</code>는 editor가 적은 이미지 경로를 허용된 경로 중 가장 가까운 것으로 바꾸되,
+유사도가 0.5 미만이거나 파일이 실제로 없으면 예외를 던진다(<span class="pathref">presentation/layout.py:77</span>).
+예외가 나면 <code>editor.retry()</code>로 되돌아간다.
+</p>
+
+<h3>길이 제어 — <code>length_factor</code></h3>
+
+<p>
+템플릿의 <code>suggested_characters</code>는 <b>원본 언어 기준</b>이다. 중국어 16자짜리 제목 자리에
+영어로 16자를 쓰면 텅 비어 보인다. 그래서 언어 계열을 비교해 배수를 정한다
+(<span class="pathref">pptgen.py:39</span>):
+</p>
+
+<div class="tablescroll">
+<table>
+  <thead><tr><th>원본 → 목표</th><th>배수</th><th>이유</th></tr></thead>
+  <tbody>
+    <tr><td>같은 계열 (CJK→CJK, 라틴→라틴)</td><td>1.2</td><td>약간의 여유만</td></tr>
+    <tr><td>라틴 → CJK</td><td>0.7</td><td>한자는 정보 밀도가 높아 글자 수가 준다</td></tr>
+    <tr><td>CJK → 라틴</td><td>2.0</td><td>반대로 늘어난다</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>
+CJK 판정은 단순하다 — <code>lid in ["zh", "ja", "ko"]</code>. 한국어로 생성하면 zh 템플릿과 같은 계열이므로 1.2배다.
+어떤 element의 최장 문자열이 <code>suggested_characters × length_factor</code>를 <b>5자 넘게</b> 초과하면
+<code>length_rewrite</code> LLM 호출이 발동해 그 배열만 다시 줄인다.
+프롬프트는 “출력 배열의 길이는 입력과 같아야 한다”고 못박아, 줄이다가 항목이 사라지는 사고를 막는다.
+</p>
+
+<div class="qmemo" data-qid="llm-structured-output" data-status="open">
+  <div class="qmemo-head">
+    <span class="qmemo-label">질문 메모</span>
+    <span class="qmemo-hint">LLM 호출 표나 구조적 출력에 대해 궁금한 점을 적어보세요.</span>
+  </div>
+  <div class="qmemo-question" contenteditable="true"
+       data-placeholder="여기에 질문을 적어보세요..."></div>
+  <div class="qmemo-answer" hidden></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2 id="paths"><span class="num">07</span>두 개의 실행 경로: 자동 파이프라인 vs MCP 도구</h2>
+
+<p>
+지금까지 설명한 Stage II에는 사실 <b>두 가지 진입점</b>이 있고, 둘은 “LLM 호출을 누가 하느냐”가 다르다.
+</p>
+
+<h3>경로 A — <code>PPTAgent</code> (<code>pptgen.py</code>)</h3>
+
+<p>
+문서(<code>Document</code>) 하나를 통째로 받아 덱 전체를 한 번에 만든다.
+planner → content_organizer → layout_selector → editor → coder 다섯 역할이 모두 코드 안에서 자동으로 호출된다.
+호출자는 그냥 <code>generate_pres(source_doc, num_slides=12)</code>를 기다리면 된다.
+</p>
+
+<h3>경로 B — <code>PPTAgentServer</code> (<code>mcp_server.py</code>)</h3>
+
+<p>
+이쪽은 <b>외부 에이전트</b>(Claude, Cursor, 혹은 <code>deeppresenter</code>의 PPTAgent 역할)가
+MCP 도구를 하나씩 호출하며 직접 운전한다. 그래서 <code>roles = ["coder"]</code> — <b>내부 역할이 coder 하나로 줄어든다.</b>
+계획·내용 조직·레이아웃 선택·내용 작성은 전부 바깥 에이전트의 머리로 옮겨간 것이다.
+</p>
+
+<div class="flow">
+  <div class="node det"><span class="k">tool</span><span class="n">list_templates()</span><span class="d">이름 + description.txt 반환</span></div>
+  <div class="arrow">→</div>
+  <div class="node det"><span class="k">tool</span><span class="n">set_template(name)</span><span class="d"><code>set_reference()</code> 실행 → <b>available_layouts</b> 반환</span></div>
+  <div class="arrow">→</div>
+  <div class="node det"><span class="k">tool</span><span class="n">create_slide(layout)</span><span class="d"><b>content_schema</b> 문자열 반환</span></div>
+  <div class="arrow">→</div>
+  <div class="node det"><span class="k">tool</span><span class="n">write_slide(elements)</span><span class="d">검증 → errors면 예외, warnings면 경고 반환</span></div>
+  <div class="arrow">→</div>
+  <div class="node det"><span class="k">tool</span><span class="n">generate_slide()</span><span class="d">coder 실행 → SlidePage 축적</span></div>
+  <div class="arrow">→</div>
+  <div class="node det"><span class="k">tool</span><span class="n">save_generated_slides(path)</span><span class="d">.pptx 파일로 저장</span></div>
+</div>
+
+<p>
+<code>create_slide</code>가 돌려주는 <code>content_schema</code>는 사람이 읽을 수 있는 평문이다
+(<span class="pathref">presentation/layout.py:132</span>). 예:
+</p>
+
+<pre class="light"><code>Element: main title
+	type: text
+	suggested_characters: 16
+	The default quantity of the element is 1
+Element: main bullets
+	type: text
+	suggested_characters: 66
+	The default quantity of the element is 4</code></pre>
+
+<p>
+외부 에이전트는 이걸 읽고 <code>write_slide</code>에 <code>[{"name": ..., "data": [...]}]</code>를 넘긴다.
+경로 A에서 editor LLM이 하던 일을 여기서는 <em>호출하는 쪽 에이전트</em>가 하는 것이다.
+검증도 조금 다르다 — <code>mcp_slide_validate</code>는 길이 초과를 <b>예외가 아니라 경고</b>로 돌려주고
+“5번까지 고쳐 보라”고 문장으로 안내한다. 대화형 도구답게 실패 대신 협상을 택한 것이다.
+</p>
+
+<div class="callout warn">
+  <span class="t">MCP 경로의 길이 기준은 영어 고정</span>
+  <p>
+    <code>mcp_slide_validate</code>는 <code>get_length_factor(prs_lang, Language.english())</code>를 쓴다.
+    실제 생성 언어가 무엇이든 <b>목표 언어를 영어로 가정</b>한다는 뜻이다.
+    중국어 템플릿이면 배수가 2.0이 되어, 한국어로 쓸 때는 사실상 상당히 헐거운 상한이 된다.
+  </p>
+</div>
+
+<p>
+표 처리도 이 경로의 특징이다. 슬라이드에 표를 넣고 싶으면 마크다운 표를 그대로 넣을 수 없고,
+<code>markdown_table_to_image(markdown_table, path, css)</code>로 이미지를 만든 뒤 그 <b>경로</b>를
+이미지 element의 <code>data</code>로 넣어야 한다. <span class="pathref">deeppresenter/roles/PPTAgent.yaml</span>의
+시스템 프롬프트가 이 규칙을 명시적으로 가르친다.
+</p>
+
+<div class="qmemo" data-qid="paths-mcp" data-status="open">
+  <div class="qmemo-head">
+    <span class="qmemo-label">질문 메모</span>
+    <span class="qmemo-hint">이 부분에서 궁금한 점을 적어보세요. 저장하면 이 파일에 그대로 남습니다.</span>
+  </div>
+  <div class="qmemo-question" contenteditable="true"
+       data-placeholder="여기에 질문을 적어보세요..."></div>
+  <div class="qmemo-answer" hidden></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2 id="edges"><span class="num">08</span>날카로운 모서리</h2>
+
+<p>
+코드를 읽다 보면 눈에 걸리는 지점들이 있다. 실제로 부딪힐 수 있는 것들만 정리한다.
+</p>
+
+<div class="callout danger">
+  <span class="t"><code>set_reference()</code>는 입력 dict를 파괴한다</span>
+  <p>
+    <code>slide_induction.pop("language")</code>와 <code>pop("functional_keys")</code>는 기본값이 없다.
+    그런데 MCP 서버는 <code>self.templates[name]["slide_induction"]</code>을 <b>복사 없이</b> 넘긴다
+    (<span class="pathref">mcp_server.py:193</span>). 따라서 한 프로세스에서 <code>set_template</code>을
+    두 번 호출하면 두 번째에 <code>KeyError: 'language'</code>가 난다.
+    <code>save_generated_slides</code>가 <code>_initialized = False</code>로 되돌리므로,
+    <b>서버 한 번 띄워서 덱 두 개를 만드는 흐름은 현재 코드로는 성립하지 않는다.</b>
+  </p>
+</div>
+
+<div class="callout warn">
+  <span class="t"><code>content_induct</code>의 zip은 키 순서에 의존한다</span>
+  <p>
+    <code>zip(layout_induction.keys(), schemas)</code>에서 <code>keys()</code>에는 <code>"functional_keys"</code>도 들어 있지만
+    <code>schemas</code>에는 없다(루프에서 건너뛰므로). 파이썬 dict의 삽입 순서 보장 덕분에
+    <code>"functional_keys"</code>가 <em>마지막</em>에 들어가고 <code>zip</code>이 짧은 쪽에서 멈춰 우연히 맞는다.
+    누군가 이 키를 먼저 넣도록 바꾸면 <b>스키마가 엉뚱한 레이아웃에 붙는다.</b>
+    같은 함수의 <code>if "content_schema" in cluster</code> 조건도 실제로 저장되는 키는 <code>"elements"</code>라 항상 거짓이다.
+  </p>
+</div>
+
+<div class="callout warn">
+  <span class="t">언어 판정은 슬라이드 한 장으로만 한다</span>
+  <p>
+    <code>layout_induction["language"] = language_id(slide.to_text())</code>의 <code>slide</code>는
+    바로 위 for 루프에서 새어 나온 변수 — 즉 <b>마지막으로 순회한 레이아웃의 대표 슬라이드 하나</b>다
+    (<span class="pathref">induct.py:208</span>). 다국어가 섞인 덱이면 결과가 흔들릴 수 있다.
+  </p>
+</div>
+
+<div class="callout info">
+  <span class="t">템플릿을 새로 추가하려면</span>
+  <p>
+    필요한 것은 다섯 가지다: <code>source.pptx</code>, <code>images/</code>, <code>image_stats.json</code>,
+    <code>slide_induction.json</code>, <code>description.txt</code>.
+    앞의 넷은 <code>scripts/template_induct.py</code>가 만들어 주지만, 그 스크립트는
+    LibreOffice(렌더링), ViT(임베딩, GPU 권장), 언어·비전 LLM을 모두 요구한다.
+    <code>description.txt</code>만은 사람이 직접 써야 한다.
+    참조 덱을 준비하는 요령은 <span class="pathref">pptagent/BESTPRACTICE.md</span>에 정리되어 있다 —
+    슬라이드당 요소 6개 이하, 텍스트 프레임은 “넘치면 자동 축소”, 표지와 마무리 슬라이드는 반드시 포함,
+    같은 층위의 내용은 <b>하나의 요소 안 글머리</b>로 (별도 텍스트 상자로 쪼개지 말 것).
+  </p>
+</div>
+
+<div class="qmemo" data-qid="edges-general" data-status="open">
+  <div class="qmemo-head">
+    <span class="qmemo-label">질문 메모</span>
+    <span class="qmemo-hint">이 부분에서 궁금한 점을 적어보세요. 저장하면 이 파일에 그대로 남습니다.</span>
+  </div>
+  <div class="qmemo-question" contenteditable="true"
+       data-placeholder="여기에 질문을 적어보세요..."></div>
+  <div class="qmemo-answer" hidden></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2 id="quiz"><span class="num">09</span>퀴즈</h2>
+
+<p>
+다섯 문제다. 답을 고르면 바로 채점되고 해설이 나온다.
+</p>
+
+<div class="quiz" data-answer="1">
+  <p class="q">Q1. <code>slide_induction.json</code>의 내용 레이아웃 키는
+    <code>"Grid Table on Top with Numbered Text List Below:image"</code>처럼 끝난다.
+    콜론 뒤의 <code>image</code>는 어떻게 정해지는가?</p>
+  <button class="opt">비전 모델이 배치 설명을 지을 때 함께 붙여 준다</button>
+  <button class="opt">대표 슬라이드에 Picture 도형이 하나라도 있으면 <code>image</code>, 없으면 <code>text</code></button>
+  <button class="opt">템플릿 작성자가 <code>description.txt</code>에 지정한다</button>
+  <button class="opt">슬라이드 면적의 20% 이상을 그림이 차지할 때만 <code>image</code></button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" data-answer="2">
+  <p class="q">Q2. 군집화(레이아웃 묶기)에는 <code>template_images</code>(글자를 <code>a</code>로 치환하고 그림을 placeholder로 바꾼 렌더)를 쓰고,
+    배치 이름을 비전 모델에 물을 때는 <code>ppt_images</code>(진짜 렌더)를 쓴다. 왜 굳이 나누는가?</p>
+  <button class="opt">placeholder 이미지가 더 작아서 임베딩 계산이 빠르기 때문</button>
+  <button class="opt">비전 모델이 중국어 텍스트를 읽지 못하기 때문</button>
+  <button class="opt">군집화는 <b>내용이 아닌 배치</b>가 같은 것끼리 묶어야 하고, 이름 짓기는 반대로 진짜 그림이 보여야 정확하기 때문</button>
+  <button class="opt">두 폴더의 슬라이드 수가 같은지 검증하기 위한 중복 렌더링이다</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" data-answer="0">
+  <p class="q">Q3. editor LLM이 레이아웃 스키마에 없는 element 이름(예: <code>"footer note"</code>)을
+    지어내는 것을 <b>1차적으로</b> 막는 장치는?</p>
+  <button class="opt"><code>EditorOutput.response_model(elements)</code>가 <code>name</code> 필드를 <code>Literal[실제 이름들]</code>로 제약한 모델을 만들어 structured output으로 강제한다</button>
+  <button class="opt">프롬프트에 “스키마에 없는 이름을 쓰지 말라”고 적혀 있다</button>
+  <button class="opt"><code>_generate_commands</code>가 모르는 이름을 조용히 버린다</button>
+  <button class="opt"><code>CodeExecutor</code>가 등록되지 않은 함수 호출을 거부한다</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" data-answer="3">
+  <p class="q">Q4. coder가 낸 API 호출문 중간에서 오류가 나 재시도할 때, 이미 적용된 앞부분의 수정은 어떻게 되는가?</p>
+  <button class="opt">그대로 남고, 오류 난 줄부터 이어서 실행한다</button>
+  <button class="opt">클로저 큐에서 역순으로 되돌린다(rollback)</button>
+  <button class="opt">그대로 남지만 <code>validate()</code>가 나중에 정리해 준다</button>
+  <button class="opt">매 시도마다 템플릿 슬라이드를 다시 <code>deepcopy</code>하므로 앞 시도의 결과는 통째로 버려지고 처음부터 다시 실행된다</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" data-answer="1">
+  <p class="q">Q5. 어떤 레이아웃에 문단이 6개인데 editor가 4개만 채웠다. 나머지 2개에 남아 있던
+    <b>원본 템플릿의 문구</b>는 최종 PPTX에서 어떻게 되는가?</p>
+  <button class="opt">그대로 남는다 — 그래서 템플릿에는 의미 없는 더미 텍스트를 넣어 두는 것이 권장된다</button>
+  <button class="opt"><code>Presentation.validate()</code>가 <code>para.edited</code>가 <code>False</code>인 문단마다 삭제 클로저를 달아 빌드 시 제거한다</button>
+  <button class="opt"><code>_hide_small_pics</code>가 배경으로 옮긴다</button>
+  <button class="opt">editor에게 재시도를 요청해 6개를 모두 채우게 만든다</button>
+  <div class="fb"></div>
+</div>
+
+<div class="qmemo" data-qid="quiz-followup" data-status="open">
+  <div class="qmemo-head">
+    <span class="qmemo-label">질문 메모</span>
+    <span class="qmemo-hint">퀴즈에서 헷갈린 문제나, 더 깊이 알고 싶은 지점을 적어 두세요.</span>
+  </div>
+  <div class="qmemo-question" contenteditable="true"
+       data-placeholder="여기에 질문을 적어보세요..."></div>
+  <div class="qmemo-answer" hidden></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2 id="wrap"><span class="num">10</span>정리</h2>
+
+<p>세 질문에 대한 한 문단짜리 답으로 마무리한다.</p>
+
+<div class="keyval">
+  <dt>어떻게 저장하는가</dt>
+  <dd>
+    폴더 하나. <code>source.pptx</code>(디자인의 실체) + <code>slide_induction.json</code>(레이아웃 카탈로그) +
+    <code>image_stats.json</code>·<code>images/</code>(그림과 캡션) + <code>description.txt</code>(사람이 쓴 소개).
+    카탈로그에는 <b>좌표도 색도 없다</b> — “어느 슬라이드를 복제할지(<code>template_id</code>)”와
+    “그 안의 문단들이 각각 무엇인지(<code>elements</code>)”뿐이다.
+  </dd>
+  <dt>어떻게 생성하는가</dt>
+  <dd>
+    레이아웃을 고르고 → 각 element에 넣을 문자열 배열을 만들고 → 원본 대비 <b>수량 변화</b>를 포함한 명령 목록으로 바꾸고 →
+    LLM이 그것을 5개짜리 편집 API 호출로 번역하고 → 템플릿 슬라이드의 깊은 복사본 위에서 실행한다.
+    실제 PPTX 수정은 <b>클로저로 미뤄 두었다가</b> 빌드 시점에 한꺼번에 적용되고,
+    손대지 않은 문단은 전부 삭제된다.
+  </dd>
+  <dt>LLM은 어디에</dt>
+  <dd>
+    템플릿 분석에 4곳(캡션·기능성 분류·배치 명명·스키마 추출), 생성에 최대 6곳(계획·요점정리·레이아웃 선택·내용 작성·길이 축약·코드 생성).
+    거의 모든 출력이 <b>pydantic <code>Literal</code>로 제약</b>되거나 <b>edit_distance로 원본에 스냅</b>되어,
+    LLM은 “창작”이 아니라 <b>주어진 선택지 안에서의 판단</b>을 하도록 좁혀져 있다.
+    MCP 경로에서는 이 중 앞의 넷이 외부 에이전트에게 위임되고 <code>coder</code>만 서버 안에 남는다.
+  </dd>
+</div>
+
+<div class="qmemo" data-qid="wrap-final" data-status="open">
+  <div class="qmemo-head">
+    <span class="qmemo-label">질문 메모</span>
+    <span class="qmemo-hint">전체를 읽고 남은 질문을 적어 두세요.</span>
+  </div>
+  <div class="qmemo-question" contenteditable="true"
+       data-placeholder="여기에 질문을 적어보세요..."></div>
+  <div class="qmemo-answer" hidden></div>
+</div>
+
+<p class="footnote" style="margin-top:40px">
+  참조 파일: <span class="pathref">pptagent/induct.py</span> ·
+  <span class="pathref">pptagent/pptgen.py</span> ·
+  <span class="pathref">pptagent/presentation/layout.py</span> ·
+  <span class="pathref">pptagent/presentation/presentation.py</span> ·
+  <span class="pathref">pptagent/apis.py</span> ·
+  <span class="pathref">pptagent/agent.py</span> ·
+  <span class="pathref">pptagent/mcp_server.py</span> ·
+  <span class="pathref">pptagent/response/</span> ·
+  <span class="pathref">pptagent/roles/*.yaml</span> ·
+  <span class="pathref">pptagent/prompts/</span> ·
+  <span class="pathref">pptagent/templates/*/</span>
+</p>
+
+</div><!-- /wrap -->
+
+<div id="qmemo-bar">
+  <button id="qmemo-save-btn">질문 저장 (파일로 다운로드)</button>
+  <span id="qmemo-saymsg"></span>
+</div>
+
+<script>
+/* ── 퀴즈 ── */
+(function () {
+  var FEEDBACK = [
+    ["정답입니다. <code>SlidePage.get_content_type()</code>이 <code>shape_filter(Picture)</code>로 그림 도형이 하나라도 있는지만 보고 <code>\"image\"</code>/<code>\"text\"</code>를 돌려주고, <code>layout_split</code>이 비전 모델의 설명문 뒤에 <code>\":\" + content_type</code>을 붙입니다.",
+     "아쉽습니다. 비전 모델(<code>ask_category.txt</code>)은 콜론 <b>앞</b>의 배치 설명 한 줄만 만듭니다. 접미사는 <code>SlidePage.get_content_type()</code>이 Picture 도형 존재 여부로 결정하는 기계적인 값입니다."],
+    ["정답입니다. 내용을 지운 렌더로 임베딩하면 유사도가 순수하게 <b>배치</b> 유사도가 되고, 반대로 이름을 지을 때는 진짜 그림이 보여야 \"Labeled Diagram on Left…\" 같은 설명이 나옵니다.",
+     "아쉽습니다. 핵심은 성능이나 검증이 아니라 <b>신호의 분리</b>입니다. 군집화는 배치만 봐야 하고(그래서 글자를 <code>a</code>로 치환), 이름 짓기는 실제 내용이 보여야 정확합니다."],
+    ["정답입니다. <code>create_model(..., name=(Literal[*elements], ...))</code>로 만든 모델을 <code>response_format</code>으로 넘기므로, 모델은 애초에 다른 이름을 낼 수 없습니다. <code>Layout.validate</code>는 그 <b>뒤</b>의 2차 방어선입니다.",
+     "아쉽습니다. 프롬프트 지시나 사후 검증도 존재하지만, <b>1차</b> 장치는 구조적 출력입니다 — <code>EditorOutput.response_model(elements)</code>가 <code>name</code>을 <code>Literal[실제 이름들]</code>로 제약한 pydantic 모델을 런타임에 만들어 강제합니다."],
+    ["정답입니다. <code>_edit_slide</code>의 루프는 매 반복 첫 줄에서 <code>edit_slide = deepcopy(self.presentation.slides[template_id - 1])</code>를 실행합니다. 그래서 부분 적용 상태가 누적되지 않습니다.",
+     "아쉽습니다. 롤백 메커니즘은 없습니다. 대신 매 시도마다 템플릿 슬라이드를 <b>다시 deepcopy</b>해 백지에서 시작합니다 — 되돌리는 것보다 다시 만드는 게 단순하기 때문입니다."],
+    ["정답입니다. <code>Presentation.validate()</code>가 <code>para.edited</code>가 <code>False</code>이고 <code>idx != -1</code>인 문단마다 <code>del_para</code> POST_PROCESS 클로저를 달아, 빌드 시 통째로 지웁니다.",
+     "아쉽습니다. 원본 문구가 남는 일은 없습니다. <code>replace_paragraph</code>/<code>del_paragraph</code>가 <code>para.edited = True</code>를 찍는데, 이 플래그가 없는 문단은 <code>validate()</code>가 삭제 클로저를 달아 제거합니다."]
+  ];
+  document.querySelectorAll('.quiz').forEach(function (quiz, qi) {
+    var answer = parseInt(quiz.dataset.answer, 10);
+    var opts = quiz.querySelectorAll('.opt');
+    var fb = quiz.querySelector('.fb');
+    opts.forEach(function (opt, oi) {
+      opt.addEventListener('click', function () {
+        var ok = oi === answer;
+        opts.forEach(function (o, i) {
+          o.disabled = true;
+          if (i === answer) o.classList.add('correct');
+        });
+        if (!ok) opt.classList.add('wrong');
+        fb.className = 'fb show ' + (ok ? 'ok' : 'no');
+        fb.innerHTML = (ok ? '✅ ' : '❌ ') + FEEDBACK[qi][ok ? 0 : 1];
+      });
+    });
+  });
+})();
+
+/* ── 질문 메모 저장 ── */
+(function () {
+  var PATH_KEY = 'qmemo:' + location.pathname;
+  document.querySelectorAll('.qmemo-question').forEach(function (el) {
+    var box = el.closest('.qmemo');
+    var saved = localStorage.getItem(PATH_KEY + ':' + box.dataset.qid);
+    if (saved) el.textContent = saved;
+    el.addEventListener('input', function () {
+      localStorage.setItem(PATH_KEY + ':' + box.dataset.qid, el.textContent);
+    });
+  });
+  var btn = document.getElementById('qmemo-save-btn');
+  if (!btn) return;
+  btn.addEventListener('click', function () {
+    // outerHTML captures the *live* DOM, so text typed into the
+    // contenteditable boxes is baked into the saved file as static markup.
+    var html = '<!doctype html>\n' + document.documentElement.outerHTML;
+    var blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = '2026-08-18-explanation-template-based-ppt-generation.html';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    document.getElementById('qmemo-saymsg').textContent =
+      '다운로드됨 → 파일탐색기에서 이 경로에 덮어쓰세요: C:\\Users\\sihoo\\PythonProject\\PPTAgent\\docs\\understanding\\2026-08-18-explanation-template-based-ppt-generation.html';
+  });
+})();
+</script>
+
+</body>
+</html>
