@@ -60,7 +60,7 @@ Do not assume the root `README.md` is fully current. It still references paths l
 
 ## Communication Rules
 
-- Think in English, reply to the user in Chinese.
+- Think in English, reply to the user in Korean.
 - Be direct and concise. If code is bad, explain why in technical terms.
 - Keep criticism focused on the implementation, design, or assumptions, never the person.
 - Do not dilute technical judgment just to sound polite.
