@@ -3,6 +3,23 @@ context_folding: true
 offline_mode: false
 async_tool_mode: false
 
+# context_window: token budget used to decide when history is folded (summarized).
+# When unset it defaults to CONTEXT_LENGTH_LIMIT // max_context_folds (200000 // 5 = 40000).
+#
+# IMPORTANT for self-hosted backends (Ollama, llama.cpp, vLLM):
+# set this BELOW the context length your server actually serves, otherwise the
+# server silently truncates the prompt long before folding kicks in. The model
+# then loses its system prompt and tool definitions, and the agent loop dies with
+# "All models failed after 10 retries: No tool call returned from the model".
+#
+# Ollama defaults to a 4096-token context. Check the CONTEXT column of `ollama ps`
+# and raise it with OLLAMA_CONTEXT_LENGTH. Note that a larger context grows the KV
+# cache and may push the model off the GPU, so verify `ollama ps` still reports
+# 100% GPU after changing it.
+#
+# Example for OLLAMA_CONTEXT_LENGTH=16384:
+# context_window: 14000
+
 research_agent:
   base_url: "https://openrouter.ai/api/v1"
   model: "anthropic/claude-sonnet-4.5"
