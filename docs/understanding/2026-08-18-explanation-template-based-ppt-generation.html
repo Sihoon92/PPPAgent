@@ -264,6 +264,11 @@
     <li><a href="#edges">날카로운 모서리</a></li>
     <li><a href="#quiz">퀴즈</a></li>
   </ol>
+  <p style="margin:14px 0 0; font-size:.88rem">
+    <b>후속편</b> →
+    <a href="2026-08-18-explanation-template-based-ppt-generation-followup.html">누가 도구를 부르는가 — 템플릿 기반 생성의 MCP 아키텍처</a>
+    <span style="color:var(--ink-faint)">(MCP 서버 구성, 에이전트 워크플로, 상태 기계 다이어그램)</span>
+  </p>
   <p class="footnote" style="margin-top:14px">
     글 곳곳에 <b>질문 메모</b> 상자가 있습니다. 읽다가 막히는 지점에 바로 질문을 적어 두세요.
     입력하는 즉시 이 브라우저(localStorage)에 자동 저장되고, 맨 아래 <b>질문 저장</b> 버튼을 누르면
@@ -1351,6 +1356,18 @@ Element: main bullets
 이미지 element의 <code>data</code>로 넣어야 한다. <span class="pathref">deeppresenter/roles/PPTAgent.yaml</span>의
 시스템 프롬프트가 이 규칙을 명시적으로 가르친다.
 </p>
+
+<div class="callout info">
+  <span class="t">더 깊이: 그 도구들을 누가 부르는가</span>
+  <p>
+    이 장은 경로 B의 <b>도구 순서</b>까지만 다룬다. 실제로는 그 위에 한 층이 더 있다 ——
+    MCP 서버 7개가 어떤 프로세스로 뜨고, 역할마다 어떤 도구만 손에 쥐며,
+    <code>sandbox</code>와 <code>finalize</code>가 왜 함께 붙고,
+    <code>generate_slide</code> 안에서 왜 <b>또 한 번 LLM이 도는지</b>.
+    후속편에서 시퀀스·상태 기계 다이어그램과 함께 다룬다:
+    <a href="2026-08-18-explanation-template-based-ppt-generation-followup.html">누가 도구를 부르는가 — 템플릿 기반 생성의 MCP 아키텍처</a>
+  </p>
+</div>
 
 <div class="qmemo" data-qid="paths-mcp" data-status="open">
   <div class="qmemo-head">

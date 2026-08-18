@@ -1,0 +1,1482 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>누가 도구를 부르는가 — 템플릿 기반 생성의 MCP 아키텍처</title>
+<style>
+  :root{
+    --bg:#f7f8f6;
+    --panel:#ffffff;
+    --ink:#1b2320;
+    --ink-soft:#4d5a54;
+    --ink-faint:#7c8a83;
+    --line:#dfe4e0;
+    --green:#1f6b4a;
+    --green-soft:#e6f1eb;
+    --green-line:#a9cdb9;
+    --purple:#6b4fa8;
+    --purple-soft:#efeaf8;
+    --purple-line:#c3b2e4;
+    --amber:#a2680a;
+    --amber-soft:#fbf1dc;
+    --amber-line:#e3c37f;
+    --blue:#1d5f8a;
+    --blue-soft:#e4f0f7;
+    --blue-line:#a6cbe1;
+    --red:#a33a30;
+    --red-soft:#fbe9e7;
+    --red-line:#e0a79f;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo",
+      "Malgun Gothic", "Noto Sans KR", sans-serif;
+    line-height:1.75; font-size:16.5px;
+    padding-bottom:120px;
+  }
+  .wrap{max-width:900px; margin:0 auto; padding:0 20px}
+  header.hero{
+    background:linear-gradient(160deg,#1f6b4a 0%, #17503a 60%, #0f3728 100%);
+    color:#eef5f0; padding:56px 0 44px; margin-bottom:36px;
+  }
+  header.hero h1{margin:0 0 10px; font-size:2.05rem; line-height:1.3; letter-spacing:-0.02em}
+  header.hero p{margin:0; color:#c9ded3; font-size:1.02rem}
+  header.hero .meta{margin-top:18px; font-size:.85rem; color:#9dbfae; font-family:var(--mono)}
+  h2{
+    margin:64px 0 8px; font-size:1.5rem; letter-spacing:-0.01em;
+    padding-top:14px; border-top:2px solid var(--line);
+  }
+  h2 .num{color:var(--green); font-family:var(--mono); font-size:1.05rem; margin-right:10px}
+  h3{margin:38px 0 6px; font-size:1.14rem; color:var(--ink)}
+  h4{margin:26px 0 4px; font-size:1.0rem; color:var(--ink-soft)}
+  p{margin:12px 0}
+  a{color:var(--green)}
+  code{
+    font-family:var(--mono); font-size:.88em; background:#eceee9;
+    padding:1px 5px; border-radius:4px; color:#274036;
+  }
+  pre{
+    white-space:pre; overflow-x:auto; background:#182220; color:#dbe6df;
+    padding:16px 18px; border-radius:10px; font-family:var(--mono);
+    font-size:.83rem; line-height:1.6; margin:16px 0;
+    border:1px solid #223330;
+  }
+  pre code{background:none; padding:0; color:inherit; font-size:1em}
+  pre.light{background:#fbfcfb; color:#243029; border:1px solid var(--line)}
+  .callout{
+    border-left:4px solid var(--green); background:var(--green-soft);
+    padding:14px 18px; border-radius:0 8px 8px 0; margin:20px 0;
+  }
+  .callout.warn{border-left-color:var(--amber); background:var(--amber-soft)}
+  .callout.info{border-left-color:var(--blue); background:var(--blue-soft)}
+  .callout.danger{border-left-color:var(--red); background:var(--red-soft)}
+  .callout .t{font-weight:700; display:block; margin-bottom:4px; font-size:.93rem}
+  .callout p:first-of-type{margin-top:0}
+  .callout p:last-child{margin-bottom:0}
+
+  /* ── TOC ── */
+  nav.toc{
+    background:var(--panel); border:1px solid var(--line); border-radius:12px;
+    padding:20px 24px; margin:0 0 10px;
+  }
+  nav.toc h2{margin:0 0 10px; border:none; padding:0; font-size:1.05rem}
+  nav.toc ol{margin:0; padding-left:22px}
+  nav.toc li{margin:5px 0}
+  nav.toc a{text-decoration:none}
+  nav.toc a:hover{text-decoration:underline}
+
+  /* ── flow diagram (shared with the original page) ── */
+  .flow{display:flex; flex-wrap:wrap; align-items:stretch; gap:8px; margin:22px 0}
+  .flow .node{
+    flex:1 1 150px; min-width:140px; background:#fff; border:1px solid var(--line);
+    border-radius:9px; padding:10px 12px;
+  }
+  .flow .node .k{
+    font-size:.68rem; font-family:var(--mono); text-transform:uppercase;
+    letter-spacing:.06em; color:var(--ink-faint); display:block; margin-bottom:3px;
+  }
+  .flow .node .n{font-weight:700; font-size:.92rem; display:block}
+  .flow .node .d{font-size:.79rem; color:var(--ink-soft); margin-top:5px; line-height:1.5}
+  .flow .node.llm{background:var(--purple-soft); border-color:var(--purple-line)}
+  .flow .node.llm .k{color:var(--purple)}
+  .flow .node.det{background:#f4f6f4}
+  .flow .arrow{
+    align-self:center; color:var(--ink-faint); font-size:1.15rem; flex:0 0 auto; padding:0 1px;
+  }
+  @media (max-width:640px){ .flow .arrow{display:none} .flow{flex-direction:column} }
+
+  .legend{display:flex; flex-wrap:wrap; gap:14px; margin:16px 0; font-size:.82rem}
+  .legend span{display:flex; align-items:center; gap:6px}
+  .legend i{width:14px; height:14px; border-radius:3px; display:inline-block; border:1px solid var(--line)}
+
+  table{
+    width:100%; border-collapse:collapse; margin:20px 0; font-size:.86rem;
+    background:#fff; border:1px solid var(--line); border-radius:8px; overflow:hidden;
+  }
+  .tablescroll{overflow-x:auto; -webkit-overflow-scrolling:touch}
+  .tablescroll table{min-width:660px; margin:0}
+  th,td{border-bottom:1px solid var(--line); padding:9px 11px; text-align:left; vertical-align:top}
+  th{background:#f1f4f2; font-weight:700; font-size:.8rem; color:var(--ink-soft)}
+  tr:last-child td{border-bottom:none}
+  td code{font-size:.82em}
+
+  .keyval{display:grid; grid-template-columns:max-content 1fr; gap:4px 14px; margin:12px 0; font-size:.9rem}
+  .keyval dt{font-family:var(--mono); color:var(--green); font-size:.84rem}
+  .keyval dd{margin:0}
+
+  .skipbox{
+    border:1px dashed var(--line); border-radius:10px; padding:4px 18px;
+    background:#fcfdfc; margin:18px 0;
+  }
+  .skipbox > summary{
+    cursor:pointer; font-weight:700; padding:12px 0; color:var(--ink-soft); font-size:.95rem;
+  }
+
+  /* ── figures ── */
+  .figscroll{
+    overflow-x:auto; -webkit-overflow-scrolling:touch; margin:22px 0;
+    background:#fff; border:1px solid var(--line); border-radius:12px; padding:14px 14px 8px;
+  }
+  .figscroll svg{display:block; min-width:720px; width:100%; height:auto}
+  .figcap{font-size:.78rem; color:var(--ink-faint); text-align:center; margin:10px 4px 4px; line-height:1.6}
+
+  /* ── process architecture diagram ── */
+  .archdiag{margin:22px 0}
+  .hostbox{
+    background:var(--purple-soft); border:1.5px solid var(--purple-line);
+    border-radius:12px; padding:12px 14px;
+  }
+  .boxlbl{
+    display:block; font-size:.72rem; font-family:var(--mono); letter-spacing:.04em;
+    color:var(--purple); font-weight:700; margin-bottom:8px;
+  }
+  .hostrow{display:flex; flex-wrap:wrap; gap:8px}
+  .hostcell{
+    flex:1 1 160px; background:#fff; border:1px solid var(--purple-line);
+    border-radius:8px; padding:8px 11px; font-size:.88rem; font-weight:700;
+  }
+  .hostcell small{display:block; font-weight:400; font-family:var(--mono);
+    font-size:.72rem; color:var(--ink-faint); margin-top:2px}
+  .stdioband{
+    text-align:center; font-family:var(--mono); font-size:.74rem; color:var(--ink-faint);
+    padding:10px 0 12px; position:relative;
+  }
+  .stdioband:before{
+    content:""; position:absolute; left:50%; top:0; bottom:0; width:1px;
+    border-left:2px dotted var(--line);
+  }
+  .stdioband span{background:var(--bg); position:relative; padding:0 10px}
+  .procgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(215px,1fr)); gap:10px}
+  .proc{
+    background:#fff; border:1px solid var(--line); border-radius:10px; padding:10px 12px;
+  }
+  .proc .pn{font-weight:700; font-size:.9rem; display:block}
+  .proc .cmd{
+    font-family:var(--mono); font-size:.71rem; color:var(--ink-faint);
+    display:block; margin:3px 0 7px; word-break:break-all;
+  }
+  .proc.on{border:1.5px solid var(--green); background:#f6fbf8}
+  .proc.on .pn{color:var(--green)}
+  .proc.off{opacity:.55}
+  .proc .badge{
+    float:right; font-size:.63rem; font-family:var(--mono); border-radius:20px;
+    padding:1px 8px; background:#eceee9; color:var(--ink-faint);
+  }
+  .proc.on .badge{background:var(--green); color:#fff}
+
+  .chips{display:flex; flex-wrap:wrap; gap:5px; margin-top:6px}
+  .chip{
+    font-family:var(--mono); font-size:.7rem; border-radius:5px; padding:2px 7px;
+    background:#eef1ee; color:var(--ink-soft); border:1px solid var(--line);
+  }
+  .chip.on{background:var(--green-soft); border-color:var(--green-line); color:var(--green); font-weight:700}
+  .chip.off{opacity:.5; text-decoration:line-through}
+  .chip.blue{background:var(--blue-soft); border-color:var(--blue-line); color:var(--blue)}
+
+  /* ── role toolbox columns ── */
+  .rolecols{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:14px; margin:22px 0}
+  .rolecol{background:#fff; border:1px solid var(--line); border-radius:12px; padding:14px 16px}
+  .rolecol h4{margin:0 0 2px; font-size:1rem; color:var(--ink)}
+  .rolecol .sub{font-size:.76rem; color:var(--ink-faint); font-family:var(--mono); margin-bottom:10px}
+  .rolecol pre{margin:10px 0; font-size:.75rem}
+
+  /* ── nested LLM boxes ── */
+  .nest{margin:22px 0}
+  .nest-outer{
+    border:1.5px solid var(--purple-line); background:var(--purple-soft);
+    border-radius:12px; padding:14px;
+  }
+  .nest-inner{
+    border:1.5px solid var(--green-line); background:#fff;
+    border-radius:10px; padding:12px 14px; margin-top:10px;
+  }
+  .nest-lbl{
+    display:block; font-family:var(--mono); font-size:.71rem; font-weight:700;
+    letter-spacing:.04em; margin-bottom:7px;
+  }
+  .nest-outer > .nest-lbl{color:var(--purple)}
+  .nest-inner > .nest-lbl{color:var(--green)}
+  .nest-step{
+    background:#fafbfa; border:1px solid var(--line); border-radius:8px;
+    padding:8px 11px; margin:7px 0; font-size:.85rem;
+  }
+  .nest-step b{font-family:var(--mono); font-size:.84rem}
+  .nest-step.llmcall{background:var(--purple-soft); border-color:var(--purple-line)}
+
+  /* ── transformation chain ── */
+  .chain{margin:22px 0}
+  .chain-step{background:#fff; border:1px solid var(--line); border-radius:10px; padding:12px 14px; margin:0}
+  .chain-step > .ct{
+    font-size:.73rem; font-family:var(--mono); color:var(--green); font-weight:700;
+    letter-spacing:.04em; display:block; margin-bottom:6px;
+  }
+  .chain-step pre{margin:0; font-size:.78rem}
+  .chain-arrow{
+    text-align:center; color:var(--ink-faint); font-size:1.3rem; line-height:1;
+    padding:7px 0;
+  }
+  .chain-arrow small{display:block; font-size:.72rem; font-family:var(--mono); margin-top:2px}
+
+  /* ── quiz ── */
+  .quiz{background:#fff; border:1px solid var(--line); border-radius:12px; padding:20px 22px; margin:22px 0}
+  .quiz .q{font-weight:700; margin:0 0 12px}
+  .quiz .opt{
+    display:block; width:100%; text-align:left; background:#fafbfa; border:1px solid var(--line);
+    border-radius:8px; padding:10px 13px; margin:7px 0; cursor:pointer; font:inherit;
+    font-size:.92rem; color:var(--ink); transition:background .12s, border-color .12s;
+  }
+  .quiz .opt:hover:not(:disabled){background:#f0f4f1; border-color:var(--green-line)}
+  .quiz .opt:disabled{cursor:default}
+  .quiz .opt.correct{background:var(--green-soft); border-color:var(--green); font-weight:600}
+  .quiz .opt.wrong{background:var(--red-soft); border-color:var(--red)}
+  .quiz .fb{margin-top:12px; font-size:.9rem; padding:11px 14px; border-radius:8px; display:none; line-height:1.65}
+  .quiz .fb.show{display:block}
+  .quiz .fb.ok{background:var(--green-soft); border-left:3px solid var(--green)}
+  .quiz .fb.no{background:var(--amber-soft); border-left:3px solid var(--amber)}
+
+  /* ── question memo ── */
+  .qmemo{
+    border:1.5px dashed #b9c3bd; background:#f3f5f3; border-radius:10px;
+    padding:12px 15px; margin:24px 0;
+  }
+  .qmemo-head{display:flex; flex-wrap:wrap; align-items:baseline; gap:10px; margin-bottom:7px}
+  .qmemo-label{
+    font-size:.72rem; font-weight:700; letter-spacing:.05em; color:#5a6862;
+    background:#e3e8e4; border-radius:20px; padding:2px 10px;
+  }
+  .qmemo-hint{font-size:.74rem; color:var(--ink-faint)}
+  .qmemo-question{
+    min-height:2.1em; background:#fff; border:1px solid var(--line); border-radius:7px;
+    padding:8px 11px; font-size:.9rem; outline:none;
+  }
+  .qmemo-question:focus{border-color:var(--green-line); box-shadow:0 0 0 3px var(--green-soft)}
+  .qmemo-question:empty:before{content:attr(data-placeholder); color:#9fa9a4}
+  .qmemo-answer{
+    margin-top:10px; background:#fff; border-left:3px solid var(--green);
+    border-radius:0 7px 7px 0; padding:10px 13px; font-size:.9rem;
+  }
+  .qmemo-answer:before{
+    content:"답변"; display:block; font-size:.7rem; font-weight:700; letter-spacing:.05em;
+    color:var(--green); margin-bottom:4px;
+  }
+  .qmemo[data-status="answered"]{border:1.5px solid var(--green-line); background:#f4faf6}
+
+  #qmemo-bar{
+    position:fixed; left:0; right:0; bottom:0; background:rgba(24,34,32,.96);
+    color:#dbe6df; padding:11px 18px; display:flex; flex-wrap:wrap; align-items:center;
+    gap:12px; z-index:50; font-size:.8rem; backdrop-filter:blur(6px);
+  }
+  #qmemo-save-btn{
+    background:var(--green); color:#fff; border:none; border-radius:7px;
+    padding:8px 16px; font:inherit; font-weight:700; cursor:pointer; font-size:.85rem;
+  }
+  #qmemo-save-btn:hover{background:#2a8259}
+  #qmemo-saymsg{color:#9dbfae; font-family:var(--mono); font-size:.74rem; word-break:break-all}
+
+  .footnote{font-size:.83rem; color:var(--ink-faint); margin-top:6px}
+  .pathref{font-family:var(--mono); font-size:.83rem; color:var(--green)}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <h1>누가 도구를 부르는가</h1>
+    <p>템플릿 기반 PPT 생성의 MCP 아키텍처와 워크플로</p>
+    <div class="meta">docs/understanding · 2026-08-18 · 후속편</div>
+  </div>
+</header>
+
+<div class="wrap">
+
+<div class="callout info">
+  <span class="t">이 글은 후속편입니다</span>
+  <p>
+    원본: <a href="2026-08-18-explanation-template-based-ppt-generation.html">템플릿 기반 PPT 생성은 어떻게 동작하는가</a>.
+    원본이 <b>“슬라이드 한 장이 어떻게 만들어지는가”</b>(템플릿 귀납과 편집 알고리즘)를 다뤘다면,
+    이 글은 그 한 층 위 — <b>“그 도구들을 누가, 어떤 순서로, 왜 부르는가”</b>를 다룹니다.
+    원본 07장에서 도구 호출 순서만 훑고 지나간 부분을 여기서 끝까지 파고듭니다.
+  </p>
+</div>
+
+<nav class="toc">
+  <h2>목차</h2>
+  <ol>
+    <li><a href="#bg">배경 — MCP라는 배선</a></li>
+    <li><a href="#intuition">직관 — 같은 도구 상자를 역할마다 다르게 채운다</a></li>
+    <li><a href="#arch">아키텍처 — 프로세스는 몇 개나 뜨는가</a></li>
+    <li><a href="#workflow">워크플로 — 한 번의 생성에서 벌어지는 일</a></li>
+    <li><a href="#statemachine">pptagent 서버는 상태 기계다</a></li>
+    <li><a href="#sandbox">sandbox와 finalize — 나머지 두 조각</a></li>
+    <li><a href="#nested">겹겹의 LLM — 도구 안에 또 모델이 있다</a></li>
+    <li><a href="#dataflow">데이터는 실제로 어떻게 변형되는가</a></li>
+    <li><a href="#gotcha">진입 경로의 함정</a></li>
+    <li><a href="#quiz">퀴즈</a></li>
+    <li><a href="#wrap">정리</a></li>
+  </ol>
+  <p class="footnote" style="margin-top:14px">
+    읽다가 궁금한 게 생기면 <b>“질문 메모”</b> 상자에 바로 적어두세요. 타이핑하는 대로 이 브라우저에
+    자동 저장되고, 맨 아래 <b>질문 저장</b> 버튼을 누르면 질문이 박힌 사본이 같은 파일명으로
+    다운로드됩니다. 그 파일로 원본을 덮어쓴 뒤 Claude에게 “질문에 답해줘”라고 하면 됩니다.
+  </p>
+</nav>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2 id="bg"><span class="num">01</span>배경 — MCP라는 배선</h2>
+
+<p>
+원본 문서를 끝까지 읽었다면 <code>set_template</code>, <code>create_slide</code>,
+<code>write_slide</code> 같은 이름이 눈에 익을 것이다. 하지만 거기서는 그 함수들이
+“어딘가에서 호출된다”는 정도로만 다뤘다. 실제로는 그 함수들이 <b>다른 프로세스</b>에 살고 있고,
+그 프로세스와 대화하는 규약이 MCP다.
+</p>
+
+<details class="skipbox">
+  <summary>아주 기초부터: 도구 호출과 MCP가 뭔가요? (이미 아신다면 건너뛰세요)</summary>
+  <p>
+    언어 모델은 글자만 뱉는다. 파일을 읽지도, 파워포인트를 저장하지도 못한다.
+    그래서 요즘 모델에는 <b>도구 호출(tool call)</b>이라는 우회로가 있다.
+    모델에게 “네가 쓸 수 있는 함수 목록은 이거다”라고 <em>스펙</em>을 함께 주면,
+    모델은 답변 대신 <code>{"name": "read_file", "arguments": {"path": "a.md"}}</code> 같은
+    JSON을 뱉는다. 그 JSON을 받아 진짜 함수를 실행하고 결과를 다시 모델에게 돌려주는 건
+    <b>프로그램의 몫</b>이다. 모델은 끝까지 글자만 다룰 뿐이다.
+  </p>
+  <p>
+    <b>MCP(Model Context Protocol)</b>는 “그 진짜 함수들을 어디에 두고 어떻게 부를 것인가”에 대한
+    표준이다. 함수를 호스트 프로그램 안에 박아 넣는 대신 <b>독립된 프로세스(MCP 서버)</b>로 띄우고,
+    표준입출력이나 HTTP로 JSON-RPC 대화를 나눈다. 이렇게 하면
+    (1) 도구 묶음을 언어·런타임에 관계없이 갈아끼울 수 있고,
+    (2) 위험한 도구를 컨테이너 안에 가둘 수 있고,
+    (3) 같은 도구 서버를 여러 호스트가 재사용할 수 있다.
+  </p>
+  <p>
+    이 저장소에서 “서버”라는 말은 웹 서버가 아니라 <b>자식 프로세스</b>를 뜻한다는 점만
+    기억하면 된다. 대부분 <code>python3 어떤파일.py</code>로 뜨고, 하나는 <code>docker run</code>으로 뜬다.
+  </p>
+</details>
+
+<h3>이 저장소가 띄우는 MCP 서버 일곱 개</h3>
+
+<p>
+목록은 <span class="pathref">deeppresenter/mcp.json</span>에 있고, 템플릿은
+<span class="pathref">deeppresenter/mcp.json.example</span>이다. 실행 시
+<code>AgentEnv</code>가 이 파일을 읽어 서버를 전부 띄운 뒤, 각 서버에게
+“너는 어떤 도구를 갖고 있니”(<code>list_tools</code>)를 물어 도구 카탈로그를 만든다
+(<span class="pathref">deeppresenter/agents/env.py:298-323</span>).
+</p>
+
+<div class="tablescroll">
+<table>
+  <thead>
+    <tr><th>서버</th><th>실행 방식</th><th>도구</th><th>역할</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>sandbox</code></td>
+      <td><code>docker run … deeppresenter-sandbox</code></td>
+      <td>read_file, write_file, move_file, edit_file, create_directory, list_directory, execute_command</td>
+      <td>격리된 파일시스템/셸</td>
+    </tr>
+    <tr>
+      <td><code>pptagent</code></td>
+      <td><code>pptagent-mcp</code></td>
+      <td>list_templates, set_template, create_slide, write_slide, generate_slide, save_generated_slides, markdown_table_to_image</td>
+      <td><b>템플릿 기반 슬라이드 생성</b></td>
+    </tr>
+    <tr>
+      <td><code>task</code></td>
+      <td><code>python3 tools/task.py</code></td>
+      <td>finalize</td>
+      <td>루프 종료 + 결과물 검증</td>
+    </tr>
+    <tr>
+      <td><code>any2markdown</code></td>
+      <td><code>python3 tools/any2markdown.py</code></td>
+      <td>convert_to_markdown</td>
+      <td>PDF·오피스 문서 → 마크다운</td>
+    </tr>
+    <tr>
+      <td><code>search</code></td>
+      <td><code>python3 tools/search.py</code></td>
+      <td>웹 검색 계열</td>
+      <td>네트워크 필요 (<code>offline_mode</code>면 제외)</td>
+    </tr>
+    <tr>
+      <td><code>tool_agents</code></td>
+      <td><code>python3 tools/tool_agents.py</code></td>
+      <td>image_caption</td>
+      <td>LLM 기반 보조 도구</td>
+    </tr>
+    <tr>
+      <td><code>deeppresenter</code></td>
+      <td><code>python3 tools/reflect.py</code></td>
+      <td>inspect_slide, inspect_manuscript</td>
+      <td>산출물 자기 점검</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<p>
+서버 이름이 <code>deeppresenter</code>인 것과 패키지 이름이 <code>deeppresenter</code>인 것,
+서버 이름이 <code>pptagent</code>인 것과 CLI 명령이 <code>pptagent</code>인 것이 겹쳐서 헷갈리기 쉽다.
+이 글에서 <b>등폭 글꼴로 쓴 <code>pptagent</code>는 언제나 MCP 서버 하나</b>를 가리킨다.
+</p>
+
+<div class="qmemo" data-qid="fu-bg-mcp-basics" data-status="open">
+  <div class="qmemo-head">
+    <span class="qmemo-label">질문 메모</span>
+    <span class="qmemo-hint">이 부분에서 궁금한 점을 적어보세요. 저장하면 이 파일에 그대로 남습니다.</span>
+  </div>
+  <div class="qmemo-question" contenteditable="true"
+       data-placeholder="여기에 질문을 적어보세요..."></div>
+  <div class="qmemo-answer" hidden></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2 id="intuition"><span class="num">02</span>직관 — 같은 도구 상자를 역할마다 다르게 채운다</h2>
+
+<p>
+서버 일곱 개가 떠 있다고 해서 모든 에이전트가 그 도구를 다 쓰는 건 아니다.
+이 시스템의 핵심 설계는 놀랄 만큼 단순하다.
+</p>
+
+<div class="callout">
+  <span class="t">한 문장 요약</span>
+  <p>
+    <b>도구는 공용 창고에 한 번만 로드하고, 역할(role)마다 그 창고에서 꺼내 쓸 목록을 YAML로 다르게 정한다.</b>
+    같은 프로세스, 같은 연결, 다른 도구 목록.
+  </p>
+</div>
+
+<p>
+비유하자면 공구 창고 하나에 망치·드라이버·용접기·전동톱을 다 넣어두고,
+목수에게는 망치와 드라이버만 든 벨트를 채워주고, 용접공에게는 용접기만 채워주는 식이다.
+창고를 두 개 만들 필요도, 목수에게 용접기를 안 쓰겠다는 약속을 받을 필요도 없다.
+<b>애초에 손에 쥐어주지 않는다.</b>
+</p>
+
+<p>
+실제 코드에서 이 “벨트 채우기”는 <code>_setup_toolset()</code> 한 함수다
+(<span class="pathref">deeppresenter/agents/agent.py:138-156</span>).
+YAML의 네 필드를 읽어 도구 목록을 조립하고, 그 목록만 LLM에게 스펙으로 넘긴다.
+</p>
+
+<div class="rolecols">
+  <div class="rolecol">
+    <h4>Research 역할</h4>
+    <div class="sub">roles/Research.yaml · use_model: research_agent</div>
+<pre class="light"><code>toolset:
+  include_tool_servers: all
+  exclude_tool_servers:
+    - pptagent
+  exclude_tools:
+    - inspect_slide</code></pre>
+    <div class="chips">
+      <span class="chip on">search</span>
+      <span class="chip on">any2markdown</span>
+      <span class="chip on">tool_agents</span>
+      <span class="chip on">sandbox</span>
+      <span class="chip on">task</span>
+      <span class="chip on">deeppresenter</span>
+      <span class="chip off">pptagent</span>
+    </div>
+    <p style="font-size:.85rem; margin-top:10px">
+      조사·수집 단계. 슬라이드를 만들 도구는 <b>일부러 손에 쥐어주지 않는다.</b>
+    </p>
+  </div>
+
+  <div class="rolecol">
+    <h4>PPTAgent 역할</h4>
+    <div class="sub">roles/PPTAgent.yaml · use_model: research_agent</div>
+<pre class="light"><code>toolset:
+  include_tool_servers:
+    - pptagent
+    - sandbox
+  include_tools:
+    - finalize</code></pre>
+    <div class="chips">
+      <span class="chip on">pptagent</span>
+      <span class="chip on">sandbox</span>
+      <span class="chip blue">finalize</span>
+      <span class="chip off">search</span>
+      <span class="chip off">any2markdown</span>
+      <span class="chip off">tool_agents</span>
+      <span class="chip off">deeppresenter</span>
+    </div>
+    <p style="font-size:.85rem; margin-top:10px">
+      제작 단계. 딱 <b>7 + 7 + 1 = 15개</b> 도구만 보인다.
+      <code>include_tools</code>는 서버 단위가 아니라 <b>도구 하나만</b> 집어오는 통로다.
+    </p>
+  </div>
+</div>
+
+<div class="callout warn">
+  <span class="t">Research가 <code>pptagent</code>를 제외하는 진짜 이유</span>
+  <p>
+    단순히 “필요 없어서”가 아니다. <code>pptagent</code> 서버는 <b>상태를 들고 있는(stateful)</b> 서버다.
+    <code>set_template()</code>로 로드한 템플릿 컨텍스트와 지금까지 쌓인 슬라이드 목록이
+    서버 프로세스 메모리에 그대로 남아 있다. 조사 단계 에이전트가 호기심에
+    <code>set_template</code>을 한 번 부르면 <b>그때까지 쌓인 슬라이드가 전부 날아간다</b>
+    (<span class="pathref">pptagent/mcp_server.py:197</span>의 <code>self.slides.clear()</code>).
+    격리는 예의가 아니라 안전장치다.
+  </p>
+</div>
+
+<div class="qmemo" data-qid="fu-intuition-toolset" data-status="open">
+  <div class="qmemo-head">
+    <span class="qmemo-label">질문 메모</span>
+    <span class="qmemo-hint">이 부분에서 궁금한 점을 적어보세요. 저장하면 이 파일에 그대로 남습니다.</span>
+  </div>
+  <div class="qmemo-question" contenteditable="true"
+       data-placeholder="여기에 질문을 적어보세요..."></div>
+  <div class="qmemo-answer" hidden></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2 id="arch"><span class="num">03</span>아키텍처 — 프로세스는 몇 개나 뜨는가</h2>
+
+<p>
+한 번의 생성을 실행하면 실제로 <b>여덟 개의 프로세스</b>가 뜬다. 호스트 하나, 서버 일곱.
+그중 하나는 도커 컨테이너다. 아래가 그 전체 그림이다.
+</p>
+
+<div class="archdiag">
+  <div class="hostbox">
+    <span class="boxlbl">호스트 프로세스 — python (CLI 또는 webui.py)</span>
+    <div class="hostrow">
+      <div class="hostcell">AgentLoop<small>main.py</small></div>
+      <div class="hostcell">AgentEnv<small>agents/env.py</small></div>
+      <div class="hostcell">MCPClient<small>utils/mcp_client.py</small></div>
+      <div class="hostcell">Agent (역할별 LLM)<small>agents/agent.py</small></div>
+    </div>
+  </div>
+  <div class="stdioband"><span>stdio · JSON-RPC · 서버마다 자식 프로세스 1개</span></div>
+  <div class="procgrid">
+    <div class="proc on"><span class="badge">사용</span><span class="pn">pptagent</span>
+      <span class="cmd">pptagent-mcp</span>
+      <div class="chips">
+        <span class="chip">list_templates</span><span class="chip">set_template</span>
+        <span class="chip">create_slide</span><span class="chip">write_slide</span>
+        <span class="chip">generate_slide</span><span class="chip">save_generated_slides</span>
+        <span class="chip">markdown_table_to_image</span>
+      </div>
+    </div>
+    <div class="proc on"><span class="badge">사용</span><span class="pn">sandbox</span>
+      <span class="cmd">docker run --rm -v $HOST_WORKSPACE:$WORKSPACE deeppresenter-sandbox</span>
+      <div class="chips">
+        <span class="chip">read_file</span><span class="chip">write_file</span>
+        <span class="chip">edit_file</span><span class="chip">move_file</span>
+        <span class="chip">create_directory</span><span class="chip">list_directory</span>
+        <span class="chip">execute_command</span>
+      </div>
+    </div>
+    <div class="proc on"><span class="badge">1개만</span><span class="pn">task</span>
+      <span class="cmd">python3 $PACKAGE_DIR/tools/task.py</span>
+      <div class="chips"><span class="chip">finalize</span></div>
+    </div>
+    <div class="proc off"><span class="badge">Research 전용</span><span class="pn">search</span>
+      <span class="cmd">python3 $PACKAGE_DIR/tools/search.py</span>
+      <div class="chips"><span class="chip">web search 계열</span></div>
+    </div>
+    <div class="proc off"><span class="badge">Research 전용</span><span class="pn">any2markdown</span>
+      <span class="cmd">python3 $PACKAGE_DIR/tools/any2markdown.py</span>
+      <div class="chips"><span class="chip">convert_to_markdown</span></div>
+    </div>
+    <div class="proc off"><span class="badge">Research 전용</span><span class="pn">tool_agents</span>
+      <span class="cmd">python3 $PACKAGE_DIR/tools/tool_agents.py</span>
+      <div class="chips"><span class="chip">image_caption</span></div>
+    </div>
+    <div class="proc off"><span class="badge">Research 전용</span><span class="pn">deeppresenter</span>
+      <span class="cmd">python3 $PACKAGE_DIR/tools/reflect.py</span>
+      <div class="chips"><span class="chip">inspect_slide</span><span class="chip">inspect_manuscript</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="legend">
+  <span><i style="background:#f6fbf8; border-color:var(--green)"></i> PPTAgent 역할이 쓰는 서버</span>
+  <span><i style="background:#fff; opacity:.55"></i> 떠 있지만 이 역할에는 안 보이는 서버</span>
+  <span><i style="background:var(--purple-soft); border-color:var(--purple-line)"></i> 호스트 프로세스</span>
+</div>
+
+<h3>서버는 어떻게 자기 워크스페이스를 알게 되는가</h3>
+
+<p>
+<code>mcp.json</code>의 <code>args</code>와 <code>env</code>에는 <code>$PACKAGE_DIR</code>,
+<code>$WORKSPACE</code>, <code>$HOST_WORKSPACE</code>, <code>$WORKSPACE_ID</code>,
+<code>$CONFIG_FILE</code> 같은 자리표시자가 들어 있다. 이걸 실제 값으로 바꾸는 건
+<code>MCPServer._process_escape()</code>다 (<span class="pathref">deeppresenter/utils/typings.py:35-60</span>).
+값은 <code>AgentEnv.__init__</code>에서 만들어진다
+(<span class="pathref">deeppresenter/agents/env.py:86-94</span>).
+</p>
+
+<pre class="light"><code>envs = {
+    "WORKSPACE":      str(self.workspace),        # ~/.cache/deeppresenter/&lt;session&gt;
+    "HOST_WORKSPACE": host_workspace,             # 도커-in-도커일 때 호스트 쪽 실제 경로
+    "WORKSPACE_ID":   self.workspace.stem,        # 컨테이너 이름으로 재사용
+    "CONFIG_FILE":    str(config.file_path),      # 서버가 모델 설정을 다시 읽을 수 있게
+    "PACKAGE_DIR":    str(PACKAGE_DIR),
+}</code></pre>
+
+<div class="callout info">
+  <span class="t"><code>WORKSPACE</code>와 <code>HOST_WORKSPACE</code>가 따로 있는 이유</span>
+  <p>
+    도커 컴포즈로 띄우면 호스트 프로세스 자체가 컨테이너 안에 있다. 그 안에서 다시
+    <code>docker run -v A:B</code>를 실행하면, 볼륨 경로 <code>A</code>는
+    <b>컨테이너 안 경로가 아니라 진짜 호스트의 경로</b>여야 한다.
+    <code>DEEPPRESENTER_HOST_WORKSPACE_BASE</code>가 설정돼 있으면 그 값으로 경로를 되매핑한다.
+    로컬 개발에서는 둘이 같은 값이다.
+  </p>
+</div>
+
+<div class="qmemo" data-qid="fu-arch-processes" data-status="open">
+  <div class="qmemo-head">
+    <span class="qmemo-label">질문 메모</span>
+    <span class="qmemo-hint">프로세스 그림에서 헷갈리는 부분을 적어두세요.</span>
+  </div>
+  <div class="qmemo-question" contenteditable="true"
+       data-placeholder="여기에 질문을 적어보세요..."></div>
+  <div class="qmemo-answer" hidden></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2 id="workflow"><span class="num">04</span>워크플로 — 한 번의 생성에서 벌어지는 일</h2>
+
+<p>
+전체 파이프라인은 두 단계다. <b>Research</b>가 원고 마크다운을 만들고,
+<b>PPTAgent</b>가 그 마크다운을 슬라이드로 옮긴다
+(<span class="pathref">deeppresenter/main.py:112-168</span>).
+두 단계는 하나의 <code>AgentEnv</code>를 공유하되, 앞서 본 대로 손에 쥐는 도구가 다르다.
+</p>
+
+<div class="flow">
+  <div class="node det"><span class="k">stage 1</span><span class="n">Research</span>
+    <span class="d">search / any2markdown / sandbox 사용<br>→ <code>manuscript.md</code></span></div>
+  <div class="arrow">→</div>
+  <div class="node llm"><span class="k">gate</span><span class="n">finalize(agent_name="Research")</span>
+    <span class="d">.md 확장자 확인 + 이미지 링크 절대경로 재작성</span></div>
+  <div class="arrow">→</div>
+  <div class="node det"><span class="k">stage 2</span><span class="n">PPTAgent</span>
+    <span class="d">pptagent / sandbox 사용<br>→ <code>deck.pptx</code></span></div>
+</div>
+
+<p>
+아래가 2단계의 실제 대화다. 화살표 하나가 곧 JSON-RPC 왕복 한 번이고,
+점선은 되돌아오는 응답이다. 예시 값은 “ICIP 발표자료를 <code>thu</code> 템플릿으로 10장” 요청을 가정했다.
+</p>
+
+<div class="figscroll">
+<svg viewBox="0 0 1040 770" xmlns="http://www.w3.org/2000/svg" role="img"
+     aria-label="PPTAgent 단계의 MCP 호출 시퀀스 다이어그램">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#4d5a54"/>
+    </marker>
+    <marker id="ahr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#7c8a83"/>
+    </marker>
+  </defs>
+  <style>
+    .ln{stroke:#dfe4e0; stroke-width:1.5; stroke-dasharray:4 5}
+    .hd{fill:#fff; stroke:#a9cdb9; stroke-width:1.5}
+    .hd2{fill:#efeaf8; stroke:#c3b2e4; stroke-width:1.5}
+    .hdt{font:700 11.5px -apple-system,"Segoe UI","Malgun Gothic",sans-serif; fill:#1b2320; text-anchor:middle}
+    .hds{font:9.5px ui-monospace,Consolas,monospace; fill:#7c8a83; text-anchor:middle}
+    .msg{stroke:#4d5a54; stroke-width:1.6; fill:none; marker-end:url(#ah)}
+    .ret{stroke:#7c8a83; stroke-width:1.3; fill:none; stroke-dasharray:5 4; marker-end:url(#ahr)}
+    .mt{font:10.5px ui-monospace,Consolas,monospace; fill:#1b2320; text-anchor:middle}
+    .rt{font:10px ui-monospace,Consolas,monospace; fill:#7c8a83; text-anchor:middle}
+    .loopbox{fill:none; stroke:#a9cdb9; stroke-width:1.3; stroke-dasharray:6 4}
+    .looplbl{font:700 10px ui-monospace,Consolas,monospace; fill:#1f6b4a}
+    .band{fill:#e6f1eb; stroke:#a9cdb9; stroke-width:1}
+    .bandt{font:11px -apple-system,"Segoe UI","Malgun Gothic",sans-serif; fill:#1f6b4a; text-anchor:middle}
+  </style>
+
+  <line class="ln" x1="90"  y1="52" x2="90"  y2="756"/>
+  <line class="ln" x1="320" y1="52" x2="320" y2="756"/>
+  <line class="ln" x1="590" y1="52" x2="590" y2="756"/>
+  <line class="ln" x1="810" y1="52" x2="810" y2="756"/>
+  <line class="ln" x1="962" y1="52" x2="962" y2="756"/>
+
+  <rect class="hd"  x="18"  y="8" width="144" height="38" rx="8"/>
+  <text class="hdt" x="90"  y="25">AgentLoop</text>
+  <text class="hds" x="90"  y="38">main.py</text>
+
+  <rect class="hd2" x="228" y="8" width="184" height="38" rx="8"/>
+  <text class="hdt" x="320" y="25">PPTAgent 역할 (LLM)</text>
+  <text class="hds" x="320" y="38">research_agent 모델</text>
+
+  <rect class="hd"  x="494" y="8" width="192" height="38" rx="8"/>
+  <text class="hdt" x="590" y="25">pptagent MCP</text>
+  <text class="hds" x="590" y="38">pptagent-mcp</text>
+
+  <rect class="hd"  x="748" y="8" width="124" height="38" rx="8"/>
+  <text class="hdt" x="810" y="25">sandbox MCP</text>
+  <text class="hds" x="810" y="38">docker</text>
+
+  <rect class="hd"  x="898" y="8" width="128" height="38" rx="8"/>
+  <text class="hdt" x="962" y="25">task MCP</text>
+  <text class="hds" x="962" y="38">finalize</text>
+
+  <rect class="band" x="18" y="60" width="1008" height="24" rx="6"/>
+  <text class="bandt" x="522" y="76">Research 단계 완료 → workspace/manuscript.md 생성됨</text>
+
+  <text class="mt" x="205" y="104">markdown_file 경로 + pptagent_prompt</text>
+  <line class="msg" x1="90" y1="112" x2="316" y2="112"/>
+
+  <text class="mt" x="565" y="138">read_file("manuscript.md")</text>
+  <line class="msg" x1="320" y1="146" x2="806" y2="146"/>
+
+  <text class="rt" x="565" y="170">원고 텍스트 (--- 로 구분된 10페이지)</text>
+  <line class="ret" x1="810" y1="178" x2="324" y2="178"/>
+
+  <text class="mt" x="455" y="204">list_templates()</text>
+  <line class="msg" x1="320" y1="212" x2="586" y2="212"/>
+
+  <text class="rt" x="455" y="236">{templates:[default, beamer, cip, hit, thu, ucas]}</text>
+  <line class="ret" x1="590" y1="244" x2="324" y2="244"/>
+
+  <text class="mt" x="455" y="270">set_template("thu")</text>
+  <line class="msg" x1="320" y1="278" x2="586" y2="278"/>
+
+  <text class="rt" x="455" y="302">{available_layouts:[opening, ...:text, ...:image]}</text>
+  <line class="ret" x1="590" y1="310" x2="324" y2="310"/>
+
+  <rect class="loopbox" x="240" y="326" width="470" height="286" rx="9"/>
+  <text class="looplbl" x="252" y="342">loop [슬라이드 10장]</text>
+
+  <text class="mt" x="455" y="366">create_slide("opening")</text>
+  <line class="msg" x1="320" y1="374" x2="586" y2="374"/>
+
+  <text class="rt" x="455" y="398">{schema:"Element: main title / suggested_characters: 16 ..."}</text>
+  <line class="ret" x1="590" y1="406" x2="324" y2="406"/>
+
+  <text class="mt" x="455" y="430">write_slide([{name:"main title", data:["연구 배경"]}, ...])</text>
+  <line class="msg" x1="320" y1="438" x2="586" y2="438"/>
+
+  <text class="rt" x="455" y="462">{message:"ok"} 또는 {warnings:["... 82자, 권장 66자"]}</text>
+  <line class="ret" x1="590" y1="470" x2="324" y2="470"/>
+
+  <text class="mt" x="455" y="494">generate_slide()</text>
+  <line class="msg" x1="320" y1="502" x2="586" y2="502"/>
+
+  <path class="msg" d="M 590 518 h 66 v 30 h -62"/>
+  <text class="rt" x="700" y="536" style="text-anchor:start">coder LLM 호출 → 편집 코드 실행</text>
+
+  <text class="rt" x="455" y="580">{message:"Slide 01 generated successfully"}</text>
+  <line class="ret" x1="590" y1="588" x2="324" y2="588"/>
+
+  <text class="mt" x="455" y="644">save_generated_slides("deck.pptx")</text>
+  <line class="msg" x1="320" y1="652" x2="586" y2="652"/>
+
+  <text class="mt" x="641" y="684">finalize(outcome="deck.pptx")</text>
+  <line class="msg" x1="320" y1="692" x2="958" y2="692"/>
+
+  <text class="rt" x="205" y="726">검증 통과 → 루프 종료, pptx 경로 반환</text>
+  <line class="ret" x1="316" y1="734" x2="94" y2="734"/>
+</svg>
+<div class="figcap">
+  실선 = 도구 호출, 점선 = 응답. 굵은 화살표 하나가 stdio JSON-RPC 왕복 한 번이다.
+  <code>generate_slide</code>에만 자기 자신을 향한 화살표가 붙어 있는데, 그 안에서 <b>또 다른 LLM 호출</b>이
+  일어나기 때문이다 (7장에서 자세히).
+</div>
+</div>
+
+<div class="callout warn">
+  <span class="t">한 턴에 도구 7개까지</span>
+  <p>
+    LLM이 한 번의 응답에서 요청할 수 있는 도구 호출은 <code>MAX_TOOLCALL_PER_TURN = 7</code>로 제한된다
+    (<span class="pathref">deeppresenter/utils/constants.py:16</span>). 초과하면
+    <code>execute()</code>가 어서션 실패를 <b>도구 결과 메시지로 되돌려준다</b> — 예외로 죽는 게 아니라
+    모델에게 “너무 많이 불렀다”고 알려주고 다시 시도하게 한다
+    (<span class="pathref">deeppresenter/agents/agent.py:261-287</span>).
+  </p>
+</div>
+
+<div class="qmemo" data-qid="fu-workflow-sequence" data-status="open">
+  <div class="qmemo-head">
+    <span class="qmemo-label">질문 메모</span>
+    <span class="qmemo-hint">시퀀스 다이어그램에서 이해가 안 되는 단계를 적어두세요.</span>
+  </div>
+  <div class="qmemo-question" contenteditable="true"
+       data-placeholder="여기에 질문을 적어보세요..."></div>
+  <div class="qmemo-answer" hidden></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2 id="statemachine"><span class="num">05</span>pptagent 서버는 상태 기계다</h2>
+
+<p>
+<code>pptagent</code> 서버의 도구 일곱 개는 아무 순서로나 부를 수 있는 독립 함수가 아니다.
+각 도구가 시작하자마자 <code>assert</code>로 선행 조건을 확인하는데, 그 어서션들을 모아 보면
+정확히 하나의 <b>상태 기계</b>가 나온다. 이걸 그림으로 보면 이 서버의 설계 의도가 한눈에 들어온다.
+</p>
+
+<div class="figscroll">
+<svg viewBox="0 0 1000 400" xmlns="http://www.w3.org/2000/svg" role="img"
+     aria-label="pptagent MCP 서버의 상태 전이 다이어그램">
+  <defs>
+    <marker id="sh" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1f6b4a"/>
+    </marker>
+    <marker id="she" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#a33a30"/>
+    </marker>
+  </defs>
+  <style>
+    .st{fill:#fff; stroke:#a9cdb9; stroke-width:2}
+    .st0{fill:#f1f4f2; stroke:#dfe4e0; stroke-width:2}
+    .stf{fill:#e6f1eb; stroke:#1f6b4a; stroke-width:2}
+    .stt{font:700 12px -apple-system,"Segoe UI","Malgun Gothic",sans-serif; fill:#1b2320; text-anchor:middle}
+    .sts{font:9.5px ui-monospace,Consolas,monospace; fill:#7c8a83; text-anchor:middle}
+    .tr{stroke:#1f6b4a; stroke-width:1.8; fill:none; marker-end:url(#sh)}
+    .tre{stroke:#a33a30; stroke-width:1.4; fill:none; stroke-dasharray:5 4; marker-end:url(#she)}
+    .trt{font:600 10.5px ui-monospace,Consolas,monospace; fill:#1f6b4a; text-anchor:middle}
+    .tret{font:10px ui-monospace,Consolas,monospace; fill:#a33a30; text-anchor:middle}
+  </style>
+
+  <rect class="st0" x="20"  y="120" width="140" height="56" rx="10"/>
+  <text class="stt" x="90"  y="145">비어 있음</text>
+  <text class="sts" x="90"  y="161">_initialized=False</text>
+
+  <rect class="st"  x="240" y="120" width="160" height="56" rx="10"/>
+  <text class="stt" x="320" y="145">템플릿 로드됨</text>
+  <text class="sts" x="320" y="161">layout=None</text>
+
+  <rect class="st"  x="480" y="120" width="160" height="56" rx="10"/>
+  <text class="stt" x="560" y="145">레이아웃 선택됨</text>
+  <text class="sts" x="560" y="161">editor_output=None</text>
+
+  <rect class="st"  x="720" y="120" width="160" height="56" rx="10"/>
+  <text class="stt" x="800" y="145">내용 검증됨</text>
+  <text class="sts" x="800" y="161">editor_output 설정</text>
+
+  <rect class="stf" x="240" y="300" width="160" height="56" rx="10"/>
+  <text class="stt" x="320" y="325">저장 완료</text>
+  <text class="sts" x="320" y="341">slides=[] 로 초기화</text>
+
+  <text class="trt" x="200" y="138">set_template()</text>
+  <line class="tr" x1="160" y1="148" x2="236" y2="148"/>
+
+  <text class="trt" x="440" y="138">create_slide()</text>
+  <line class="tr" x1="400" y1="148" x2="476" y2="148"/>
+
+  <text class="trt" x="680" y="138">write_slide()</text>
+  <line class="tr" x1="640" y1="148" x2="716" y2="148"/>
+
+  <path class="tr" d="M 800 176 v 42 H 320 v -42"/>
+  <text class="trt" x="560" y="234">generate_slide()  →  slides += 1 장,  layout·editor_output 초기화</text>
+
+  <path class="tr" d="M 300 176 v 124"/>
+  <text class="trt" x="222" y="244">save_generated</text>
+  <text class="trt" x="222" y="258">_slides(path)</text>
+
+  <path class="tr" d="M 340 300 V 250 H 90 v -74"/>
+  <text class="trt" x="150" y="292">다시 set_template 필요</text>
+
+  <path class="tre" d="M 90 120 V 70 H 520 v 44"/>
+  <text class="tret" x="300" y="62">set_template 없이 create_slide → "please call set_template first"</text>
+
+  <path class="tre" d="M 560 176 v 26 h 190"/>
+  <text class="tret" x="700" y="216">write_slide 없이 generate_slide → "Slide elements are not set"</text>
+</svg>
+<div class="figcap">
+  초록 실선 = 정상 전이, 빨간 점선 = 어서션 실패로 되돌아오는 에러.
+  에러는 예외가 되어 도구 결과로 전달되고, LLM은 그 문장을 읽고 스스로 순서를 고친다.
+</div>
+</div>
+
+<h3>도구별 입력과 출력</h3>
+
+<div class="tablescroll">
+<table>
+  <thead>
+    <tr><th>도구</th><th>입력</th><th>출력</th><th>왜 이 모양인가</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>list_templates</code></td>
+      <td>없음</td>
+      <td><code>{message, templates:[{name, description}]}</code></td>
+      <td>각 템플릿의 <code>description.txt</code>를 그대로 실어 보낸다. 모델이 주제에 맞는 걸 고를 근거가 된다.</td>
+    </tr>
+    <tr>
+      <td><code>set_template</code></td>
+      <td><code>template_name: str</code></td>
+      <td><code>{template_description, available_layouts:[…]}</code></td>
+      <td><code>source.pptx</code> + <code>slide_induction.json</code>을 메모리에 올린다. <b>누적 슬라이드를 지우므로 1회만.</b></td>
+    </tr>
+    <tr>
+      <td><code>create_slide</code></td>
+      <td><code>layout: str</code></td>
+      <td><code>{instructions, schema}</code></td>
+      <td>레이아웃의 <code>content_schema</code> — 요소 이름·타입·권장 글자수·기본 개수를 사람이 읽는 평문으로.</td>
+    </tr>
+    <tr>
+      <td><code>write_slide</code></td>
+      <td><code>[{name, data:[str]}]</code></td>
+      <td><code>{message}</code> / <code>{warnings:[…]}</code> / <b>예외</b></td>
+      <td>검증 게이트. 이름 불일치·이미지 부재는 예외, 길이 초과는 경고. 실패 대신 협상.</td>
+    </tr>
+    <tr>
+      <td><code>generate_slide</code></td>
+      <td>없음 (서버 상태 사용)</td>
+      <td><code>{message, available_layouts}</code></td>
+      <td>내부에서 coder LLM이 편집 코드를 만들어 템플릿 슬라이드 사본에 실행. 반환된 레이아웃 목록은 <b>매번 섞여서</b> 온다.</td>
+    </tr>
+    <tr>
+      <td><code>save_generated_slides</code></td>
+      <td><code>pptx_path: str</code></td>
+      <td>저장 확인 문자열</td>
+      <td>누적 슬라이드를 하나의 pptx로 직렬화하고 상태를 초기화한다.</td>
+    </tr>
+    <tr>
+      <td><code>markdown_table_to_image</code></td>
+      <td><code>markdown_table, path, css</code></td>
+      <td>저장된 이미지 경로</td>
+      <td>템플릿 도형에는 마크다운 표를 넣을 수 없다. 표를 그려서 <b>이미지 요소</b>로 우회한다.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="callout info">
+  <span class="t">왜 <code>generate_slide</code>는 레이아웃 목록을 매번 섞어서 돌려줄까</span>
+  <p>
+    <code>shuffle(available_layouts)</code>가 코드에 그냥 들어 있다
+    (<span class="pathref">pptagent/mcp_server.py:299</span>).
+    목록 순서가 고정이면 LLM이 앞쪽 레이아웃만 반복해서 고르는 <b>위치 편향</b>이 생긴다.
+    섞어 주면 덱 전체의 레이아웃 다양성이 올라간다. 한 줄짜리 처방이지만 효과는 구조적이다.
+  </p>
+</div>
+
+<div class="qmemo" data-qid="fu-statemachine" data-status="open">
+  <div class="qmemo-head">
+    <span class="qmemo-label">질문 메모</span>
+    <span class="qmemo-hint">상태 전이나 도구 입출력에서 막히는 부분을 적어두세요.</span>
+  </div>
+  <div class="qmemo-question" contenteditable="true"
+       data-placeholder="여기에 질문을 적어보세요..."></div>
+  <div class="qmemo-answer" hidden></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2 id="sandbox"><span class="num">06</span>sandbox와 finalize — 나머지 두 조각</h2>
+
+<h3>sandbox: pptagent 서버는 파일을 모른다</h3>
+
+<p>
+앞의 표를 다시 보면 이상한 점이 있다. <code>pptagent</code> 서버의 도구 어디에도
+“파일을 읽는다”가 없다. <code>write_slide</code>는 이미 <b>완성된 텍스트와 이미지 경로</b>를 받고,
+<code>save_generated_slides</code>만 파일을 하나 쓴다.
+</p>
+
+<p>
+그럼 Research가 만들어 둔 <code>manuscript.md</code>는 누가 읽나? <code>sandbox</code>다.
+그래서 PPTAgent 역할의 도구 목록에 <code>sandbox</code>가 함께 들어 있다.
+둘은 역할이 깔끔하게 갈린다.
+</p>
+
+<div class="rolecols">
+  <div class="rolecol">
+    <h4>sandbox가 하는 일</h4>
+    <ul style="font-size:.88rem; margin:8px 0 0; padding-left:20px">
+      <li>원고 <code>manuscript.md</code> 읽기</li>
+      <li>첨부 이미지가 실제로 있는지 확인 (<code>list_directory</code>)</li>
+      <li>표 이미지를 저장할 디렉터리 만들기</li>
+      <li>필요하면 셸 명령 실행</li>
+    </ul>
+  </div>
+  <div class="rolecol">
+    <h4>pptagent가 하는 일</h4>
+    <ul style="font-size:.88rem; margin:8px 0 0; padding-left:20px">
+      <li>템플릿 카탈로그 제공</li>
+      <li>레이아웃 스키마 제공</li>
+      <li>내용 검증</li>
+      <li>슬라이드 렌더링과 pptx 저장</li>
+    </ul>
+  </div>
+</div>
+
+<p>
+그리고 sandbox는 도커 컨테이너 안에서 돈다. 워크스페이스만 볼륨으로 붙고
+(<code>-v $HOST_WORKSPACE:$WORKSPACE -w $WORKSPACE</code>), <code>--rm</code>으로 뜬다.
+LLM이 지어낸 셸 명령이 호스트에 직접 닿지 않게 하기 위한 격리다.
+</p>
+
+<h3>finalize: 종료 조건이자 품질 게이트</h3>
+
+<p>
+에이전트 루프는 “할 일 다 했다”는 모델의 <em>말</em>로는 끝나지 않는다.
+<code>finalize</code> 도구를 실제로 호출해야 끝난다
+(<span class="pathref">deeppresenter/agents/pptagent.py:16-28</span>).
+그리고 그 도구는 역할마다 <b>다른 계약</b>을 검사한다
+(<span class="pathref">deeppresenter/tools/task.py:58-111</span>).
+</p>
+
+<pre class="light"><code>elif agent_name == "PPTAgent":
+    assert path.is_file() and path.suffix == ".pptx", \
+        f"Outcome file should be a pptx file, got {path.suffix}"
+    prs = Presentation(str(path))
+    if len(prs.slides) &lt;= 0:
+        return "PPTX file should contain at least one slide"</code></pre>
+
+<div class="callout">
+  <span class="t">숨은 인자: <code>agent_name</code></span>
+  <p>
+    이 분기는 <code>agent_name</code> 값에 달려 있는데, 그 인자는
+    <code>@mcp.tool(exclude_args=["agent_name"])</code>로 <b>스키마에서 제외</b>돼 있다.
+    즉 LLM은 이런 인자가 있다는 사실조차 모른다. 값은 프레임워크가 호출 직전에 몰래 끼워 넣는다:
+  </p>
+<pre class="light"><code># deeppresenter/agents/agent.py:269-270
+if t.function.name == "finalize":
+    arguments["agent_name"] = self.name</code></pre>
+  <p>
+    덕분에 모델이 <code>agent_name="Design"</code>이라고 우겨서 pptx 검사를 우회하는 일이 원천적으로 불가능하다.
+    <b>검증 기준을 피검증자의 손이 닿지 않는 곳에 둔 것</b>이다.
+  </p>
+</div>
+
+<div class="qmemo" data-qid="fu-sandbox-finalize" data-status="open">
+  <div class="qmemo-head">
+    <span class="qmemo-label">질문 메모</span>
+    <span class="qmemo-hint">이 부분에서 궁금한 점을 적어보세요.</span>
+  </div>
+  <div class="qmemo-question" contenteditable="true"
+       data-placeholder="여기에 질문을 적어보세요..."></div>
+  <div class="qmemo-answer" hidden></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2 id="nested"><span class="num">07</span>겹겹의 LLM — 도구 안에 또 모델이 있다</h2>
+
+<p>
+보통 MCP 서버는 “멍청한” 도구다. 파일을 읽고, 검색하고, 계산한다.
+<code>pptagent</code> 서버는 다르다. <b>자기 안에서 또 LLM을 부른다.</b>
+이게 이 시스템에서 가장 놓치기 쉬운 사실이고, 로컬 모델로 돌릴 때 병목의 정체이기도 하다.
+</p>
+
+<div class="nest">
+  <div class="nest-outer">
+    <span class="nest-lbl">호스트 프로세스 — PPTAgent 역할</span>
+    <div class="nest-step llmcall">
+      <b>LLM 호출 ①</b> — research_agent 모델. 원고를 읽고 “<code>generate_slide()</code>를 부르겠다”는
+      도구 호출 JSON을 생성한다.
+    </div>
+    <div style="text-align:center; color:var(--ink-faint); font-size:1.2rem; padding:4px">↓ <span style="font-size:.72rem; font-family:var(--mono)">stdio JSON-RPC</span></div>
+
+    <div class="nest-inner">
+      <span class="nest-lbl">pptagent-mcp 프로세스 — PPTAgentServer.generate_slide()</span>
+      <div class="nest-step">
+        <b>_generate_commands()</b> — 순수 파이썬. 템플릿 원본 내용과 새 내용을 비교해
+        <code>(요소이름, 타입, quantity_change, 기존내용, 새내용)</code> 튜플 목록을 만든다.
+      </div>
+      <div class="nest-step llmcall">
+        <b>LLM 호출 ②</b> — <code>self.staffs["coder"]</code>.
+        템플릿 슬라이드의 HTML 표현 + 위 명령 목록 + API 문서를 받아
+        <b>실행 가능한 편집 코드</b>를 생성한다.
+        <span class="pathref">pptagent/pptgen.py:501-505</span>
+      </div>
+      <div class="nest-step">
+        <b>CodeExecutor.execute_actions()</b> — 그 코드를 템플릿 슬라이드의
+        <code>deepcopy</code>에 실행한다. 실패하면 피드백을 붙여 <code>retry_times</code>만큼 재시도.
+      </div>
+      <div class="nest-step">
+        <b>SlidePage 반환</b> → <code>self.slides</code>에 누적
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="callout danger">
+  <span class="t">이게 왜 중요한가</span>
+  <p>
+    슬라이드 10장짜리 덱을 만들면 <b>LLM 호출 ②</b>만 최소 10번 일어난다.
+    바깥 에이전트의 호출 횟수와는 완전히 별개다. 게다가 이 안쪽 모델은
+    <code>CONFIG_FILE</code>의 <code>research_agent</code> 엔드포인트를 <b>서버가 직접 다시 읽어</b> 만든다
+    (<span class="pathref">pptagent/mcp_server.py:72-82</span>).
+    로컬 Ollama처럼 동시 요청에 약한 백엔드라면, 여기서 큐가 쌓이면서
+    “<code>generate_slide</code>만 유난히 느리다”는 증상으로 나타난다.
+  </p>
+</div>
+
+<div class="callout warn">
+  <span class="t">서버 기동 시점의 연결 테스트</span>
+  <p>
+    <code>PPTAgentServer.__init__</code>은 <code>model.to_sync().test_connection()</code>을 호출하고,
+    실패하면 예외를 던지며 죽는다. 그래서 <b>모델 설정이 잘못돼 있으면 첫 도구 호출이 아니라
+    서버 기동 단계에서</b> 무너진다. <code>list_templates</code>조차 못 부르는 상황이라면
+    도구 로직이 아니라 <code>config.yaml</code>을 먼저 의심해야 한다.
+  </p>
+</div>
+
+<div class="qmemo" data-qid="fu-nested-llm" data-status="open">
+  <div class="qmemo-head">
+    <span class="qmemo-label">질문 메모</span>
+    <span class="qmemo-hint">중첩 LLM 구조에서 헷갈리는 부분을 적어두세요.</span>
+  </div>
+  <div class="qmemo-question" contenteditable="true"
+       data-placeholder="여기에 질문을 적어보세요..."></div>
+  <div class="qmemo-answer" hidden></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2 id="dataflow"><span class="num">08</span>데이터는 실제로 어떻게 변형되는가</h2>
+
+<p>
+지금까지의 이야기를 장난감 데이터 하나로 관통해 보자.
+원고의 한 페이지가 슬라이드 한 장이 되기까지 여섯 번 모습을 바꾼다.
+</p>
+
+<div class="chain">
+  <div class="chain-step">
+    <span class="ct">① manuscript.md — Research 산출물</span>
+<pre class="light"><code>## 연구 배경
+
+- 기존 방법은 텍스트 품질만 평가한다
+- 시각적 완성도와 구조적 일관성은 빠져 있다
+
+---</code></pre>
+  </div>
+
+  <div class="chain-arrow">↓<small>sandbox: read_file</small></div>
+
+  <div class="chain-step">
+    <span class="ct">② content_schema — create_slide("opening") 응답</span>
+<pre class="light"><code>Element: main title
+	type: text
+	suggested_characters: 16
+	The default quantity of the element is 1
+Element: main bullets
+	type: text
+	suggested_characters: 66
+	The default quantity of the element is 4</code></pre>
+  </div>
+
+  <div class="chain-arrow">↓<small>바깥 LLM이 스키마에 맞춰 내용 작성</small></div>
+
+  <div class="chain-step">
+    <span class="ct">③ write_slide 입력 — 검증 통과해야 함</span>
+<pre class="light"><code>[
+  {"name": "main title",   "data": ["연구 배경"]},
+  {"name": "main bullets", "data": [
+      "기존 방법은 텍스트 품질만 평가한다",
+      "시각적 완성도와 구조적 일관성은 빠져 있다"
+  ]}
+]</code></pre>
+  </div>
+
+  <div class="chain-arrow">↓<small>generate_slide → _generate_commands (순수 파이썬)</small></div>
+
+  <div class="chain-step">
+    <span class="ct">④ command_list — 기존 대비 무엇이 달라지는가</span>
+<pre class="light"><code>[
+  ("main title",   "text", "quantity_change: 0",
+   ["Tourism &amp; Culture:"], ["연구 배경"]),
+
+  ("main bullets", "text", "quantity_change: -2",
+   ["항목1", "항목2", "항목3", "항목4"],
+   ["기존 방법은 …", "시각적 완성도와 …"]),
+]</code></pre>
+    <p style="font-size:.83rem; color:var(--ink-soft); margin:8px 0 0">
+      <code>quantity_change: -2</code> — 원본 템플릿은 불릿이 4개였는데 2개만 쓰므로
+      <b>도형 2개를 지워야 한다</b>는 뜻이다.
+    </p>
+  </div>
+
+  <div class="chain-arrow">↓<small>coder LLM (호출 ②) → 편집 코드</small></div>
+
+  <div class="chain-step">
+    <span class="ct">⑤ edit actions — 실행 가능한 코드</span>
+<pre class="light"><code>replace_span(slide, "main title",   0, "연구 배경")
+replace_span(slide, "main bullets", 0, "기존 방법은 텍스트 품질만 평가한다")
+replace_span(slide, "main bullets", 1, "시각적 완성도와 구조적 일관성은 빠져 있다")
+del_span(    slide, "main bullets", 2)
+del_span(    slide, "main bullets", 3)</code></pre>
+  </div>
+
+  <div class="chain-arrow">↓<small>CodeExecutor.execute_actions → 템플릿 슬라이드 deepcopy에 적용</small></div>
+
+  <div class="chain-step">
+    <span class="ct">⑥ SlidePage → self.slides 에 누적 → save_generated_slides("deck.pptx")</span>
+    <p style="margin:6px 0 0; font-size:.88rem">
+      마지막에 <code>finalize("deck.pptx")</code>가 파일을 열어 슬라이드가 1장 이상인지 확인하면
+      루프가 종료되고, <code>AgentLoop</code>가 그 경로를 호출자에게 돌려준다.
+    </p>
+  </div>
+</div>
+
+<div class="callout info">
+  <span class="t">왜 ④ 같은 중간 표현을 거치는가</span>
+  <p>
+    ③에서 ⑤로 바로 갈 수도 있어 보인다. 하지만 그러면 coder LLM이
+    “원래 뭐가 있었고 몇 개를 지워야 하는지”를 스스로 추론해야 한다.
+    ④는 그 <b>차이 계산을 결정론적 파이썬으로 미리 끝내서</b> LLM에게는
+    “이 명령대로 코드만 써라”라는 훨씬 좁은 문제만 남긴다.
+    LLM에게 맡기는 판단의 범위를 좁힐수록 실패율이 내려간다는 원칙이 여기 그대로 적용돼 있다.
+  </p>
+</div>
+
+<div class="qmemo" data-qid="fu-dataflow" data-status="open">
+  <div class="qmemo-head">
+    <span class="qmemo-label">질문 메모</span>
+    <span class="qmemo-hint">데이터 변형 단계에서 궁금한 점을 적어두세요.</span>
+  </div>
+  <div class="qmemo-question" contenteditable="true"
+       data-placeholder="여기에 질문을 적어보세요..."></div>
+  <div class="qmemo-answer" hidden></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2 id="gotcha"><span class="num">09</span>진입 경로의 함정</h2>
+
+<p>
+여기까지 읽고 터미널에서 템플릿 모드를 시험해 보려 한다면, 먼저 알아둘 게 있다.
+<b>지금 코드의 CLI로는 이 경로에 도달할 수 없다.</b>
+</p>
+
+<p>
+분기는 <span class="pathref">deeppresenter/main.py:141</span> 한 줄이다.
+</p>
+
+<pre class="light"><code>if request.convert_type == ConvertType.PPTAGENT:
+    self.pptagent = PPTAgent(...)      # ← 이 글이 다룬 템플릿 경로
+else:
+    self.designagent = Design(...)     # ← 자유형 HTML 슬라이드 경로</code></pre>
+
+<p>
+그런데 <code>convert_type</code>의 기본값은 <code>DEEPPRESENTER</code>이고
+(<span class="pathref">deeppresenter/utils/typings.py:187</span>),
+CLI의 <code>generate</code> 명령은 <code>InputRequest</code>를 만들 때 이 필드를 <b>아예 건드리지 않는다</b>
+(<span class="pathref">deeppresenter/cli/commands.py:356-362</span>).
+값을 넣어 주는 곳은 웹 UI뿐이다.
+</p>
+
+<pre class="light"><code># webui.py:33-34
+CONVERT_MAPPING = {
+    "自由生成 (freeform)": ConvertType.DEEPPRESENTER,
+    "模版 (templates)":    ConvertType.PPTAGENT,
+}</code></pre>
+
+<div class="callout danger">
+  <span class="t">정리하면</span>
+  <p>
+    <code>pptagent generate …</code>로는 <b>항상 자유형(HTML) 경로</b>를 탄다.
+    템플릿 기반 생성을 쓰려면 <code>python webui.py</code>로 웹 UI를 띄우고
+    출력 유형 드롭다운에서 <b>模版 (templates)</b>를 골라야 한다.
+    템플릿 이름 드롭다운은 그때만 나타나며, <code>auto</code>로 두면
+    <code>template=None</code>이 되어 <b>모델이 <code>list_templates</code> 결과를 보고 직접 고른다.</b>
+  </p>
+</div>
+
+<p>
+CLI에 <code>--mode template</code> 같은 플래그를 붙이는 건 어렵지 않다 —
+<code>generate()</code>에 옵션 하나를 추가해 <code>InputRequest(convert_type=…)</code>에 넘기면 끝이다.
+지금 없는 건 기술적 제약이 아니라 그냥 노출되지 않은 것뿐이다.
+</p>
+
+<div class="qmemo" data-qid="fu-gotcha-entrypoint" data-status="open">
+  <div class="qmemo-head">
+    <span class="qmemo-label">질문 메모</span>
+    <span class="qmemo-hint">진입 경로나 설정에 대해 궁금한 점을 적어두세요.</span>
+  </div>
+  <div class="qmemo-question" contenteditable="true"
+       data-placeholder="여기에 질문을 적어보세요..."></div>
+  <div class="qmemo-answer" hidden></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2 id="quiz"><span class="num">10</span>퀴즈</h2>
+
+<p>
+다섯 문제다. 답을 고르면 바로 채점되고 해설이 붙는다.
+</p>
+
+<div class="quiz" data-answer="b">
+  <p class="q">1. Research 역할의 도구 목록에서 <code>pptagent</code> 서버를 제외하는 가장 큰 이유는?</p>
+  <button class="opt" data-k="a">조사 단계에서는 토큰을 아껴야 하므로</button>
+  <button class="opt" data-k="b">그 서버가 상태를 들고 있어서, 잘못 건드리면 누적된 슬라이드가 지워지므로</button>
+  <button class="opt" data-k="c">Research는 다른 모델을 쓰기 때문에 호환되지 않으므로</button>
+  <button class="opt" data-k="d">도커 컨테이너 접근 권한이 없으므로</button>
+  <div class="fb ok" data-fb="ok">정답. <code>set_template()</code>은 <code>self.slides.clear()</code>를 실행한다. 상태를 가진 서버를 잘못된 단계에 노출하면 조용히 결과가 날아간다. 토큰 절약은 부수 효과일 뿐 설계 이유가 아니다.</div>
+  <div class="fb no" data-fb="no">아니다. 핵심은 <b>상태</b>다. <code>pptagent</code> 서버는 템플릿 컨텍스트와 누적 슬라이드를 프로세스 메모리에 들고 있어서, <code>set_template</code>이 한 번 잘못 호출되면 그때까지 만든 슬라이드가 전부 사라진다. 참고로 Research와 PPTAgent는 <b>같은</b> <code>research_agent</code> 모델을 쓴다.</div>
+</div>
+
+<div class="quiz" data-answer="c">
+  <p class="q">2. <code>finalize</code>의 <code>agent_name</code> 인자는 어떻게 채워지는가?</p>
+  <button class="opt" data-k="a">LLM이 도구 스키마를 보고 직접 채운다</button>
+  <button class="opt" data-k="b"><code>mcp.json</code>의 <code>env</code>로 서버에 주입된다</button>
+  <button class="opt" data-k="c">스키마에서 숨겨져 있고, 프레임워크가 호출 직전에 끼워 넣는다</button>
+  <button class="opt" data-k="d">역할 YAML의 <code>use_model</code> 값에서 유도된다</button>
+  <div class="fb ok" data-fb="ok">정답. <code>@mcp.tool(exclude_args=["agent_name"])</code>로 스키마에서 빠지고, <code>agent.py:269-270</code>에서 <code>arguments["agent_name"] = self.name</code>으로 주입된다. 모델이 검증 분기를 스스로 고를 수 없게 만든 설계다.</div>
+  <div class="fb no" data-fb="no">아니다. LLM은 이 인자의 존재조차 모른다 — <code>exclude_args</code>로 스키마에서 제거되기 때문이다. 값은 <code>agent.py:269-270</code>에서 프레임워크가 넣는다. 검증 기준을 피검증자가 건드릴 수 없게 하려는 의도다.</div>
+</div>
+
+<div class="quiz" data-answer="a">
+  <p class="q">3. <code>write_slide</code>에 권장 글자수를 크게 초과하는 텍스트를 넘기면?</p>
+  <button class="opt" data-k="a">예외 없이 <code>warnings</code>가 담긴 응답이 돌아오고, 그대로 진행할 수도 있다</button>
+  <button class="opt" data-k="b">예외가 발생해 반드시 다시 써야 한다</button>
+  <button class="opt" data-k="c">서버가 자동으로 텍스트를 잘라낸다</button>
+  <button class="opt" data-k="d">해당 요소가 슬라이드에서 제거된다</button>
+  <div class="fb ok" data-fb="ok">정답. <code>mcp_slide_validate</code>는 길이 문제를 <b>warning</b>으로 분류한다. 예외가 되는 건 요소 이름 불일치와 존재하지 않는 이미지 경로뿐이다. 응답 문구도 “고쳐 보되 5번 재시도 후에는 진행하라”는 협상형이다.</div>
+  <div class="fb no" data-fb="no">아니다. 길이 초과는 <b>warning</b>이라 예외를 던지지 않는다. <b>error</b>가 되는 경우는 두 가지 — 레이아웃에 없는 요소 이름을 썼거나, <code>data</code>에 넣은 이미지 파일이 실제로 존재하지 않을 때다.</div>
+</div>
+
+<div class="quiz" data-answer="d">
+  <p class="q">4. 슬라이드 10장을 만들 때, <code>pptagent</code> MCP <b>서버 프로세스 안에서</b> 일어나는 LLM 호출은 최소 몇 번인가?</p>
+  <button class="opt" data-k="a">0번 — MCP 서버는 LLM을 부르지 않는다</button>
+  <button class="opt" data-k="b">1번 — 서버 기동 시 한 번만</button>
+  <button class="opt" data-k="c">2번 — 시작과 저장 시점</button>
+  <button class="opt" data-k="d">10번 — <code>generate_slide</code> 호출마다 coder LLM이 돌기 때문</button>
+  <div class="fb ok" data-fb="ok">정답. <code>generate_slide</code> → <code>_edit_slide</code> → <code>self.staffs["coder"]</code>가 매번 편집 코드를 생성한다. 바깥 에이전트의 호출과는 별개이고, 실패 시 재시도까지 붙는다. 로컬 모델에서 이 단계가 병목이 되는 이유다.</div>
+  <div class="fb no" data-fb="no">아니다. 이 서버는 “멍청한” 도구가 아니다. <code>generate_slide</code>가 불릴 때마다 내부 coder 역할 LLM이 편집 코드를 생성한다(<code>pptgen.py:501</code>). 10장이면 최소 10번, 재시도가 붙으면 그 이상이다.</div>
+</div>
+
+<div class="quiz" data-answer="b">
+  <p class="q">5. <code>pptagent generate "회사 소개" -o deck.pptx</code>를 실행하면 어떤 경로를 타는가?</p>
+  <button class="opt" data-k="a">템플릿 경로 — <code>default</code> 템플릿이 자동 선택된다</button>
+  <button class="opt" data-k="b">자유형 HTML 경로 — CLI는 <code>convert_type</code>을 노출하지 않아 기본값이 쓰인다</button>
+  <button class="opt" data-k="c">첨부 파일 유무에 따라 자동으로 갈린다</button>
+  <button class="opt" data-k="d"><code>config.yaml</code>의 설정에 따라 갈린다</button>
+  <div class="fb ok" data-fb="ok">정답. <code>convert_type</code> 기본값은 <code>DEEPPRESENTER</code>이고 CLI는 이 필드를 설정하지 않는다. 템플릿 모드는 <code>webui.py</code>의 출력 유형 드롭다운으로만 들어갈 수 있다.</div>
+  <div class="fb no" data-fb="no">아니다. <code>main.py:141</code>의 분기는 <code>convert_type</code> 하나만 본다. 기본값은 <code>DEEPPRESENTER</code>(자유형)이고, CLI의 <code>generate</code>는 이 값을 건드리지 않는다. 첨부 파일이나 <code>config.yaml</code>은 이 분기에 영향을 주지 않는다.</div>
+</div>
+
+<div class="qmemo" data-qid="fu-quiz-followup" data-status="open">
+  <div class="qmemo-head">
+    <span class="qmemo-label">질문 메모</span>
+    <span class="qmemo-hint">틀린 문제가 있다면 무엇이 헷갈렸는지 적어두세요.</span>
+  </div>
+  <div class="qmemo-question" contenteditable="true"
+       data-placeholder="여기에 질문을 적어보세요..."></div>
+  <div class="qmemo-answer" hidden></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2 id="wrap"><span class="num">11</span>정리</h2>
+
+<p>
+원본 문서가 “템플릿에서 슬라이드를 어떻게 뽑아내는가”라는 알고리즘의 문제를 다뤘다면,
+이 글은 “그 알고리즘을 누가 운전하는가”라는 배선의 문제를 다뤘다. 요점은 다섯 가지다.
+</p>
+
+<div class="keyval">
+  <dt>도구 격리</dt>
+  <dd>서버 7개를 한 번 띄우고, 역할마다 YAML로 다른 부분집합을 쥐어준다. Research는 <code>pptagent</code>를 못 본다.</dd>
+
+  <dt>상태 기계</dt>
+  <dd><code>pptagent</code> 서버의 어서션들이 곧 상태 전이 규칙이다. 순서를 어기면 에러 문장이 LLM에게 되돌아간다.</dd>
+
+  <dt>역할 분담</dt>
+  <dd><code>pptagent</code>는 파일을 모르고, <code>sandbox</code>는 슬라이드를 모른다. 겹치는 책임이 없다.</dd>
+
+  <dt>중첩 LLM</dt>
+  <dd><code>generate_slide</code> 한 번이 MCP 서버 안에서 또 한 번의 LLM 호출을 부른다.</dd>
+
+  <dt>검증의 위치</dt>
+  <dd><code>finalize</code>의 <code>agent_name</code>은 모델이 볼 수 없는 곳에서 주입된다. 게이트는 통과 대상이 열 수 없어야 한다.</dd>
+</div>
+
+<p>
+마지막으로 다시 강조하면, 이 모든 흐름은 <b>웹 UI에서 “模版 (templates)”를 골랐을 때만</b> 실행된다.
+CLI로 같은 걸 하고 싶다면 <code>generate()</code>에 옵션 하나를 붙이는 게 가장 작은 변경이다.
+</p>
+
+<p style="margin-top:26px">
+← 돌아가기: <a href="2026-08-18-explanation-template-based-ppt-generation.html">템플릿 기반 PPT 생성은 어떻게 동작하는가</a>
+</p>
+
+<div class="qmemo" data-qid="fu-wrap-final" data-status="open">
+  <div class="qmemo-head">
+    <span class="qmemo-label">질문 메모</span>
+    <span class="qmemo-hint">전체를 읽고 남은 질문을 자유롭게 적어두세요.</span>
+  </div>
+  <div class="qmemo-question" contenteditable="true"
+       data-placeholder="여기에 질문을 적어보세요..."></div>
+  <div class="qmemo-answer" hidden></div>
+</div>
+
+</div><!-- /wrap -->
+
+<div id="qmemo-bar">
+  <button id="qmemo-save-btn">질문 저장 (파일로 다운로드)</button>
+  <span id="qmemo-saymsg"></span>
+</div>
+
+<script>
+/* ── quiz ── */
+document.querySelectorAll('.quiz').forEach(function (q) {
+  var correct = q.dataset.answer;
+  q.querySelectorAll('.opt').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      q.querySelectorAll('.opt').forEach(function (b) { b.disabled = true; });
+      var ok = btn.dataset.k === correct;
+      btn.classList.add(ok ? 'correct' : 'wrong');
+      if (!ok) {
+        var right = q.querySelector('.opt[data-k="' + correct + '"]');
+        if (right) right.classList.add('correct');
+      }
+      var fb = q.querySelector(ok ? '[data-fb="ok"]' : '[data-fb="no"]');
+      if (fb) fb.classList.add('show');
+    });
+  });
+});
+
+/* ── question memo ── */
+(function () {
+  var PATH_KEY = 'qmemo:' + location.pathname;
+  document.querySelectorAll('.qmemo-question').forEach(function (el) {
+    var box = el.closest('.qmemo');
+    var saved = localStorage.getItem(PATH_KEY + ':' + box.dataset.qid);
+    if (saved) el.textContent = saved;
+    el.addEventListener('input', function () {
+      localStorage.setItem(PATH_KEY + ':' + box.dataset.qid, el.textContent);
+    });
+  });
+  var btn = document.getElementById('qmemo-save-btn');
+  if (!btn) return;
+  btn.addEventListener('click', function () {
+    // outerHTML captures the *live* DOM, so text typed into the
+    // contenteditable boxes is baked into the saved file as static markup.
+    var html = '<!doctype html>\n' + document.documentElement.outerHTML;
+    var blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = '2026-08-18-explanation-template-based-ppt-generation-followup.html';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    document.getElementById('qmemo-saymsg').textContent =
+      '다운로드됨 → 파일탐색기에서 이 경로에 덮어쓰세요: C:\\Users\\sihoo\\PythonProject\\PPTAgent\\docs\\understanding\\2026-08-18-explanation-template-based-ppt-generation-followup.html';
+  });
+})();
+</script>
+</body>
+</html>
