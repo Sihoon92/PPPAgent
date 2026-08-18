@@ -1,0 +1,5 @@
+# Shell scripts must keep LF endings so they run under WSL/Linux
+*.sh text eol=lf
+
+# Python entrypoints are executed directly via their shebang
+*.py text eol=lf
