@@ -39,6 +39,10 @@ def mcp_slide_validate(editor_output: EditorOutput, layout: Layout, prs_lang: La
         errors.append(f"Element {el} not found in editor output")
     for el in editor_elements - layout_elements:
         errors.append(f"Element {el} not found in layout")
+    if errors:
+        # The checks below index editor_output by layout element name. Running
+        # them now would raise KeyError and hide the errors just collected.
+        return warnings, errors
     for el in layout.elements:
         if layout[el.name].type == "image":
             for i in range(len(editor_output[el.name].data)):

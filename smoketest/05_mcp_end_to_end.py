@@ -115,8 +115,16 @@ async def drive(template: str, workspace: Path) -> dict:
 
             # 3. create_slide
             r = await session.call_tool("create_slide", {"layout": layout})
-            schema_body = text_of(r)
+            # create_slide returns a dict, so the transport hands back JSON:
+            # the schema arrives with its newlines escaped, and splitlines()
+            # would see a single line.
+            schema_body = json.loads(text_of(r))["schema"]
             elements = parse_schema(schema_body)
+            if not elements:
+                raise RuntimeError(
+                    "스키마에서 요소를 하나도 뽑지 못했습니다. 형식이 바뀐 것 같습니다:\n"
+                    f"{schema_body[:400]}"
+                )
             print(f"  [OK  ] create_slide({layout[:40]}) → 요소 {len(elements)}개")
             for el in elements:
                 print(f"           · {el['name']} ({el['type']}, {el['quantity']}개, ~{el['chars']}자)")

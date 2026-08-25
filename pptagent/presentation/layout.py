@@ -32,7 +32,7 @@ class Element(BaseModel):
 
     def get_schema(self):
         schema = f"Element: {self.name}\n"
-        schema += f"\type: {self.type}\n"
+        schema += f"\ttype: {self.type}\n"
         if self.type == "text":
             schema += f"\tsuggested_characters: {self.suggested_characters}\n"
         if self.variable_length is not None:
