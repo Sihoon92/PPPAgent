@@ -120,6 +120,7 @@ exclude = ["*.test", "*.test.*", "test.*", "test", "sarl*", "data*", "harness*"]
 
 [tool.setuptools.package-data]
 "pptagent" = [
+    "scripts/win_convert.py",
     "prompts/*.txt",
     "prompts/**/*.txt",
     "roles/*.yaml",

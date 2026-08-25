@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Run the offline smoke tests in order and print a summary.
 #
-#   ./smoketest/run_all.sh            # stages 0-4 (no LLM needed)
+#   ./smoketest/run_all.sh            # stages 0-4 and 6 (no LLM needed)
 #   ./smoketest/run_all.sh --with-llm # also stage 5 (needs PPTAGENT_MODEL or CONFIG_FILE)
 #
 # Stage 5 is skipped by default because it is the only one that needs a model.
@@ -21,6 +21,7 @@ STAGES=(
   "02_validate_content.py"
   "03_build_slide_no_llm.py"
   "04_docker_sandbox.py"
+  "06_win_convert.py"
 )
 [ "${1:-}" = "--with-llm" ] && STAGES+=("05_mcp_end_to_end.py")
 

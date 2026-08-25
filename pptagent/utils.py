@@ -28,6 +28,8 @@ from pptagent_pptx.util import Length, Pt
 from pydantic import BaseModel
 from tenacity import RetryCallState, retry, stop_after_attempt, wait_fixed
 
+from . import winppt
+
 
 class Language(BaseModel):
     lid: str
@@ -87,15 +89,28 @@ def get_logger(name="pptagent", level=None):
 
 logger = get_logger(__name__)
 
-if which("unoconvert"):
-    logger.info("using `unoconvert` for pptx to images conversion")
-    unoserver_url = os.environ.get("UNOSERVER_URL", "127.0.0.1")
-    unoserver_port = os.environ.get("UNOSERVER_PORT", "2003")
-elif which("soffice"):
-    logger.info("using `soffice` for pptx to images conversion")
+unoserver_url = os.environ.get("UNOSERVER_URL", "127.0.0.1")
+unoserver_port = os.environ.get("UNOSERVER_PORT", "2003")
+
+
+def use_windows_bridge(local_converter: str | None) -> bool:
+    """Whether this file conversion should go through Windows PowerPoint."""
+    return winppt.should_use_bridge(
+        local_converter is not None, winppt.office_mode(), winppt.bridge_status()[0]
+    )
+
+
+_local_converter = which("unoconvert") or which("soffice")
+if use_windows_bridge(_local_converter):
+    logger.info("using Windows PowerPoint for pptx to images conversion")
+elif _local_converter is not None:
+    logger.info(f"using `{_local_converter}` for pptx to images conversion")
 else:
     logger.warning(
-        "unoconvert/soffice is not installed, pptx to images conversion will not work"
+        "no pptx to images converter available: LibreOffice is absent and the "
+        f"Windows PowerPoint bridge is unusable ({winppt.bridge_status()[1]}). "
+        "This affects template induction and evaluation only -- slide "
+        "generation does not convert anything to images."
     )
 
 
@@ -402,6 +417,12 @@ async def _is_unoserver_running(host: str, port: int) -> bool:
         return False
 
 
+def _save_pdf_pages(pdf_path: str, output_dir: str, dpi: int) -> None:
+    """Rasterise every page of a PDF into the output directory."""
+    for i, img in enumerate(convert_from_path(pdf_path, dpi=dpi)):
+        img.save(join(output_dir, f"slide_{i + 1:04d}.jpg"))
+
+
 async def ppt_to_images(file: str, output_dir: str, dpi: int = 100):
     assert exists(file), f"File {file} does not exist"
     if exists(output_dir) and len(os.listdir(output_dir)) > 0:
@@ -409,12 +430,20 @@ async def ppt_to_images(file: str, output_dir: str, dpi: int = 100):
         return
     os.makedirs(output_dir, exist_ok=True)
 
+    unoconvert_path = which("unoconvert")
+    soffice_path = which("soffice")
+
+    if use_windows_bridge(unoconvert_path or soffice_path):
+        with tempfile.TemporaryDirectory() as out_dir:
+            pdf_path = join(out_dir, os.path.basename(file) + ".pdf")
+            await winppt.pptx_to_pdf(Path(file), Path(pdf_path))
+            _save_pdf_pages(pdf_path, output_dir, dpi)
+        return
+
     with (
         tempfile.TemporaryDirectory() as out_dir,
         tempfile.TemporaryDirectory() as profile_dir,
     ):
-        unoconvert_path = which("unoconvert")
-        soffice_path = which("soffice")
         pdf_path = None
         if unoconvert_path is not None and await _is_unoserver_running(
             unoserver_url, int(unoserver_port)
@@ -468,9 +497,7 @@ async def ppt_to_images(file: str, output_dir: str, dpi: int = 100):
                 )
             pdf_path = join(out_dir, pdf_files[0])
 
-        images = convert_from_path(pdf_path, dpi=dpi)
-        for i, img in enumerate(images):
-            img.save(join(output_dir, f"slide_{i + 1:04d}.jpg"))
+        _save_pdf_pages(pdf_path, output_dir, dpi)
 
 
 def parsing_image(image: Image, image_path: str) -> str:
@@ -503,18 +530,22 @@ def wmf_to_images(blob: bytes, filepath: str):
     dirname = os.path.dirname(filepath)
     base_name = os.path.basename(filepath).removesuffix(".png")
     with tempfile.TemporaryDirectory() as temp_dir:
-        with open(join(temp_dir, f"{base_name}.wmf"), "wb") as f:
+        wmf_path = join(temp_dir, f"{base_name}.wmf")
+        with open(wmf_path, "wb") as f:
             f.write(blob)
-        command_list = [
-            "soffice",
-            "--headless",
-            "--convert-to",
-            "png",
-            join(temp_dir, f"{base_name}.wmf"),
-            "--outdir",
-            dirname,
-        ]
-        subprocess.run(command_list, check=True, stdout=subprocess.DEVNULL)
+        if use_windows_bridge(which("soffice")):
+            winppt.wmf_to_png(Path(wmf_path), Path(filepath))
+        else:
+            command_list = [
+                "soffice",
+                "--headless",
+                "--convert-to",
+                "png",
+                wmf_path,
+                "--outdir",
+                dirname,
+            ]
+            subprocess.run(command_list, check=True, stdout=subprocess.DEVNULL)
 
     assert exists(filepath), f"File {filepath} does not exist"
 
