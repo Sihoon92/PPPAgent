@@ -1,0 +1,1963 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>템플릿 충실도와 시각 품질은 어떻게 평가되는가 — PPTAgent 해설</title>
+<style>
+  :root{
+    --bg:#f7f8f6;
+    --panel:#ffffff;
+    --ink:#1b2320;
+    --ink-soft:#4d5a54;
+    --ink-faint:#7c8a83;
+    --line:#dfe4e0;
+    --green:#1f6b4a;
+    --green-soft:#e6f1eb;
+    --green-line:#a9cdb9;
+    --purple:#6b4fa8;
+    --purple-soft:#efeaf8;
+    --purple-line:#c3b2e4;
+    --amber:#a2680a;
+    --amber-soft:#fbf1dc;
+    --amber-line:#e3c37f;
+    --blue:#1d5f8a;
+    --blue-soft:#e4f0f7;
+    --blue-line:#a6cbe1;
+    --red:#a33a30;
+    --red-soft:#fbe9e7;
+    --red-line:#e0aaa3;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo",
+      "Malgun Gothic", "Noto Sans KR", sans-serif;
+    line-height:1.75; font-size:16.5px;
+    padding-bottom:120px;
+  }
+  .wrap{max-width:900px; margin:0 auto; padding:0 20px}
+  header.hero{
+    background:linear-gradient(160deg,#1f6b4a 0%, #17503a 60%, #0f3728 100%);
+    color:#eef5f0; padding:56px 0 44px; margin-bottom:36px;
+  }
+  header.hero h1{margin:0 0 10px; font-size:2.05rem; line-height:1.3; letter-spacing:-0.02em}
+  header.hero p{margin:0; color:#c9ded3; font-size:1.02rem}
+  header.hero .meta{margin-top:18px; font-size:.85rem; color:#9dbfae; font-family:var(--mono)}
+  h2{
+    margin:64px 0 8px; font-size:1.5rem; letter-spacing:-0.01em;
+    padding-top:14px; border-top:2px solid var(--line);
+  }
+  h2 .num{color:var(--green); font-family:var(--mono); font-size:1.05rem; margin-right:10px}
+  h3{margin:38px 0 6px; font-size:1.14rem; color:var(--ink)}
+  h4{margin:26px 0 4px; font-size:1.0rem; color:var(--ink-soft)}
+  p{margin:12px 0}
+  a{color:var(--green)}
+  code{
+    font-family:var(--mono); font-size:.88em; background:#eceee9;
+    padding:1px 5px; border-radius:4px; color:#274036;
+  }
+  pre{
+    white-space:pre; overflow-x:auto; background:#182220; color:#dbe6df;
+    padding:16px 18px; border-radius:10px; font-family:var(--mono);
+    font-size:.83rem; line-height:1.6; margin:16px 0;
+    border:1px solid #223330;
+  }
+  pre code{background:none; padding:0; color:inherit; font-size:1em}
+  pre.light{background:#fbfcfb; color:#243029; border:1px solid var(--line)}
+  pre .hl{color:#ffd479}
+  pre .bad{color:#ff9d92}
+  pre .ok{color:#93d7ac}
+  pre .cmt{color:#6f8279}
+  .callout{
+    border-left:4px solid var(--green); background:var(--green-soft);
+    padding:14px 18px; border-radius:0 8px 8px 0; margin:20px 0;
+  }
+  .callout.warn{border-left-color:var(--amber); background:var(--amber-soft)}
+  .callout.info{border-left-color:var(--blue); background:var(--blue-soft)}
+  .callout.danger{border-left-color:var(--red); background:var(--red-soft)}
+  .callout .t{font-weight:700; display:block; margin-bottom:4px; font-size:.93rem}
+  .callout p:first-of-type{margin-top:0}
+  .callout p:last-child{margin-bottom:0}
+
+  /* ── TOC ── */
+  nav.toc{
+    background:var(--panel); border:1px solid var(--line); border-radius:12px;
+    padding:20px 24px; margin:0 0 10px;
+  }
+  nav.toc h2{margin:0 0 10px; border:none; padding:0; font-size:1.05rem}
+  nav.toc ol{margin:0; padding-left:22px}
+  nav.toc li{margin:5px 0}
+  nav.toc a{text-decoration:none}
+  nav.toc a:hover{text-decoration:underline}
+
+  /* ── slide card visual language (shared with the generation explainer) ── */
+  .deck{display:flex; flex-wrap:wrap; gap:14px; margin:20px 0; align-items:flex-start}
+  .slidecard{
+    width:150px; background:#fff; border:1px solid var(--line); border-radius:6px;
+    padding:9px; position:relative; box-shadow:0 1px 2px rgba(0,0,0,.05);
+  }
+  .slidecard .sc-n{
+    position:absolute; top:-9px; left:-9px; width:20px; height:20px; border-radius:50%;
+    background:var(--ink); color:#fff; font-size:.68rem; display:flex;
+    align-items:center; justify-content:center; font-family:var(--mono);
+  }
+  .slidecard .sc-title{height:9px; border-radius:2px; background:var(--green); margin-bottom:7px}
+  .slidecard .sc-title.short{width:55%}
+  .slidecard .sc-title.mid{width:75%}
+  .slidecard .sc-title.over{width:130%; background:var(--red)}
+  .slidecard .sc-line{height:4px; border-radius:2px; background:#c9d2cc; margin:4px 0}
+  .slidecard .sc-line.w90{width:90%} .slidecard .sc-line.w70{width:70%}
+  .slidecard .sc-line.w50{width:50%} .slidecard .sc-line.w40{width:40%}
+  .slidecard .sc-line.ghosttext{background:repeating-linear-gradient(90deg,#e0c7c3,#e0c7c3 4px,#f3dedb 4px,#f3dedb 8px)}
+  .slidecard .sc-img{
+    height:36px; border-radius:3px; background:
+      repeating-linear-gradient(45deg,#dbe7ee,#dbe7ee 5px,#cddde7 5px,#cddde7 10px);
+    border:1px solid var(--blue-line); margin:5px 0;
+  }
+  .slidecard .sc-img.missing{
+    background:repeating-linear-gradient(45deg,#f5dedb,#f5dedb 5px,#ecc9c4 5px,#ecc9c4 10px);
+    border-color:var(--red-line);
+  }
+  .slidecard .sc-cap{font-size:.64rem; color:var(--ink-faint); text-align:center; margin-top:6px; line-height:1.35}
+  .slidecard.bad{border-color:var(--red-line); background:#fffbfa}
+  .slidecard.good{border-color:var(--green-line); background:#fbfefc}
+  .slidecard.tmpl{border-style:dashed; background:#fbfcfb}
+  .slidecard .sc-flag{
+    position:absolute; top:-10px; right:-8px; font-size:.62rem; font-family:var(--mono);
+    background:var(--red); color:#fff; padding:1px 7px; border-radius:20px;
+  }
+  .slidecard .sc-flag.ok{background:var(--green)}
+  .slidecard.clip{overflow:hidden}
+
+  /* ── flow diagram ── */
+  .flow{display:flex; flex-wrap:wrap; align-items:stretch; gap:8px; margin:22px 0}
+  .flow .node{
+    flex:1 1 150px; min-width:140px; background:#fff; border:1px solid var(--line);
+    border-radius:9px; padding:10px 12px;
+  }
+  .flow .node .k{
+    font-size:.68rem; font-family:var(--mono); text-transform:uppercase;
+    letter-spacing:.06em; color:var(--ink-faint); display:block; margin-bottom:3px;
+  }
+  .flow .node .n{font-weight:700; font-size:.92rem; display:block}
+  .flow .node .d{font-size:.79rem; color:var(--ink-soft); margin-top:5px; line-height:1.5}
+  .flow .node.llm{background:var(--purple-soft); border-color:var(--purple-line)}
+  .flow .node.llm .k{color:var(--purple)}
+  .flow .node.vlm{background:var(--blue-soft); border-color:var(--blue-line)}
+  .flow .node.vlm .k{color:var(--blue)}
+  .flow .node.det{background:#f4f6f4}
+  .flow .arrow{
+    align-self:center; color:var(--ink-faint); font-size:1.15rem; flex:0 0 auto; padding:0 1px;
+  }
+  @media (max-width:640px){ .flow .arrow{display:none} .flow{flex-direction:column} }
+
+  .legend{display:flex; flex-wrap:wrap; gap:14px; margin:16px 0; font-size:.82rem}
+  .legend span{display:flex; align-items:center; gap:6px}
+  .legend i{width:14px; height:14px; border-radius:3px; display:inline-block; border:1px solid var(--line)}
+
+  figure.fig{margin:26px 0; background:#fff; border:1px solid var(--line);
+    border-radius:12px; padding:18px 16px 12px}
+  figure.fig svg{display:block; width:100%; height:auto}
+  figure.fig figcaption{font-size:.8rem; color:var(--ink-faint); margin-top:10px;
+    text-align:center; line-height:1.6}
+  .svgscroll{overflow-x:auto; -webkit-overflow-scrolling:touch}
+
+  table{
+    width:100%; border-collapse:collapse; margin:20px 0; font-size:.86rem;
+    background:#fff; border:1px solid var(--line); border-radius:8px; overflow:hidden;
+  }
+  .tablescroll{overflow-x:auto; -webkit-overflow-scrolling:touch}
+  .tablescroll table{min-width:660px; margin:0}
+  th,td{border-bottom:1px solid var(--line); padding:9px 11px; text-align:left; vertical-align:top}
+  th{background:#f1f4f2; font-weight:700; font-size:.8rem; color:var(--ink-soft)}
+  tr:last-child td{border-bottom:none}
+  td code{font-size:.82em}
+  td.yes{background:var(--green-soft); color:#17503a; font-weight:600}
+  td.no{background:var(--red-soft); color:#7d2a22; font-weight:600}
+  td.part{background:var(--amber-soft); color:#7a4d06; font-weight:600}
+
+  .keyval{display:grid; grid-template-columns:max-content 1fr; gap:4px 14px; margin:12px 0; font-size:.9rem}
+  .keyval dt{font-family:var(--mono); color:var(--green); font-size:.84rem}
+  .keyval dd{margin:0}
+
+  .skipbox{
+    border:1px dashed var(--line); border-radius:10px; padding:4px 18px;
+    background:#fcfdfc; margin:18px 0;
+  }
+  .skipbox > summary{
+    cursor:pointer; font-weight:700; padding:12px 0; color:var(--ink-soft); font-size:.95rem;
+  }
+
+  .badge{
+    display:inline-block; font-family:var(--mono); font-size:.7rem; font-weight:700;
+    padding:2px 9px; border-radius:20px; vertical-align:middle; margin-right:6px;
+  }
+  .badge.gate{background:var(--green-soft); color:var(--green); border:1px solid var(--green-line)}
+  .badge.judge{background:var(--purple-soft); color:var(--purple); border:1px solid var(--purple-line)}
+  .badge.gap{background:var(--red-soft); color:var(--red); border:1px solid var(--red-line)}
+
+  /* ── quiz ── */
+  .quiz{background:#fff; border:1px solid var(--line); border-radius:12px; padding:20px 22px; margin:22px 0}
+  .quiz .q{font-weight:700; margin:0 0 12px}
+  .quiz .opt{
+    display:block; width:100%; text-align:left; background:#fafbfa; border:1px solid var(--line);
+    border-radius:8px; padding:10px 13px; margin:7px 0; cursor:pointer; font:inherit;
+    font-size:.92rem; color:var(--ink); transition:background .12s, border-color .12s;
+  }
+  .quiz .opt:hover:not(:disabled){background:#f0f4f1; border-color:var(--green-line)}
+  .quiz .opt:disabled{cursor:default}
+  .quiz .opt.correct{background:var(--green-soft); border-color:var(--green); font-weight:600}
+  .quiz .opt.wrong{background:var(--red-soft); border-color:var(--red)}
+  .quiz .fb{margin-top:12px; font-size:.9rem; padding:11px 14px; border-radius:8px; display:none; line-height:1.65}
+  .quiz .fb.show{display:block}
+  .quiz .fb.ok{background:var(--green-soft); border-left:3px solid var(--green)}
+  .quiz .fb.no{background:var(--amber-soft); border-left:3px solid var(--amber)}
+
+  /* ── question memo ── */
+  .qmemo{
+    border:1.5px dashed #b9c3bd; background:#f3f5f3; border-radius:10px;
+    padding:12px 15px; margin:24px 0;
+  }
+  .qmemo-head{display:flex; flex-wrap:wrap; align-items:baseline; gap:10px; margin-bottom:7px}
+  .qmemo-label{
+    font-size:.72rem; font-weight:700; letter-spacing:.05em; color:#5a6862;
+    background:#e3e8e4; border-radius:20px; padding:2px 10px;
+  }
+  .qmemo-hint{font-size:.74rem; color:var(--ink-faint)}
+  .qmemo-question{
+    min-height:2.1em; background:#fff; border:1px solid var(--line); border-radius:7px;
+    padding:8px 11px; font-size:.9rem; outline:none;
+  }
+  .qmemo-question:focus{border-color:var(--green-line); box-shadow:0 0 0 3px var(--green-soft)}
+  .qmemo-question:empty:before{content:attr(data-placeholder); color:#9fa9a4}
+  .qmemo-answer{
+    margin-top:10px; background:#fff; border-left:3px solid var(--green);
+    border-radius:0 7px 7px 0; padding:10px 13px; font-size:.9rem;
+  }
+  .qmemo-answer:before{
+    content:"답변"; display:block; font-size:.7rem; font-weight:700; letter-spacing:.05em;
+    color:var(--green); margin-bottom:4px;
+  }
+  .qmemo[data-status="answered"]{border:1.5px solid var(--green-line); background:#f4faf6}
+
+  #qmemo-bar{
+    position:fixed; left:0; right:0; bottom:0; background:rgba(24,34,32,.96);
+    color:#dbe6df; padding:11px 18px; display:flex; flex-wrap:wrap; align-items:center;
+    gap:12px; z-index:50; font-size:.8rem; backdrop-filter:blur(6px);
+  }
+  #qmemo-save-btn{
+    background:var(--green); color:#fff; border:none; border-radius:7px;
+    padding:8px 16px; font:inherit; font-weight:700; cursor:pointer; font-size:.85rem;
+  }
+  #qmemo-save-btn:hover{background:#2a8259}
+  #qmemo-saymsg{color:#9dbfae; font-family:var(--mono); font-size:.74rem; word-break:break-all}
+
+  .footnote{font-size:.83rem; color:var(--ink-faint); margin-top:6px}
+  .pathref{font-family:var(--mono); font-size:.83rem; color:var(--green)}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <h1>잘 만들어졌는지 어떻게 아는가</h1>
+    <p>PPTAgent가 <b>템플릿 충실도</b>와 <b>콘텐츠·시각 품질</b>을 실제로 어떤 코드로 판정하는가 — 그리고 무엇을 판정하지 <em>않는가</em></p>
+    <div class="meta">PPTAgent · pptagent/ 스택 · 2026-08-26</div>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>목차</h2>
+  <ol>
+    <li><a href="#bg">배경 — 평가라는 말에 섞여 있는 두 개의 질문</a></li>
+    <li><a href="#intuition">직관 — 문지기와 심판</a></li>
+    <li><a href="#fidelity">템플릿 충실도: 문지기들의 코드</a></li>
+    <li><a href="#quality">콘텐츠·시각 품질: 심판들의 코드</a></li>
+    <li><a href="#aggregate">점수는 어떻게 합쳐지는가 — 집계의 3층</a></li>
+    <li><a href="#edges">날카로운 모서리 — 코드를 읽다 발견한 것들</a></li>
+    <li><a href="#gap">비어 있는 칸 — 아무도 재지 않는 것</a></li>
+    <li><a href="#quiz">퀴즈</a></li>
+  </ol>
+  <p style="margin:14px 0 0; font-size:.88rem">
+    <b>선행 문서</b> →
+    <a href="2026-08-18-explanation-template-based-ppt-generation.html">템플릿 기반 PPT 생성은 어떻게 동작하는가</a>
+    ·
+    <a href="2026-08-18-explanation-template-based-ppt-generation-followup.html">누가 도구를 부르는가 (MCP 아키텍처)</a>
+    <span style="color:var(--ink-faint)">— 이 문서는 그 파이프라인의 <em>출력을 검사하는 쪽</em>을 다룹니다.</span>
+  </p>
+  <p class="footnote" style="margin-top:14px">
+    글 곳곳에 <b>질문 메모</b> 상자가 있습니다. 읽다가 막히는 지점에 바로 질문을 적어 두세요.
+    입력하는 즉시 이 브라우저(localStorage)에 자동 저장되고, 맨 아래 <b>질문 저장</b> 버튼을 누르면
+    <i>같은 파일명</i>으로 질문이 박힌 사본이 다운로드됩니다. 상태 표시줄이 알려주는 경로에 덮어쓴 뒤
+    Claude에게 "질문에 답해줘"라고 하면 이 파일 안에 답이 채워집니다.
+  </p>
+</nav>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2 id="bg"><span class="num">01</span>배경 — 평가라는 말에 섞여 있는 두 개의 질문</h2>
+
+<p>
+"생성된 PPT가 제대로 만들어졌는지 평가한다"는 한 문장처럼 들리지만, 안에는 성격이 전혀 다른 두 질문이 들어 있다.
+</p>
+
+<div class="flow">
+  <div class="node det">
+    <span class="k">질문 A</span>
+    <span class="n">템플릿 충실도</span>
+    <span class="d">내가 넣으라고 지시한 내용이, 지시한 틀에, 틀을 깨지 않고 들어갔는가?</span>
+  </div>
+  <div class="arrow">vs</div>
+  <div class="node llm">
+    <span class="k">질문 B</span>
+    <span class="n">콘텐츠·시각 품질</span>
+    <span class="d">그렇게 만들어진 슬라이드가 사람이 보기에 좋은가?</span>
+  </div>
+</div>
+
+<p>
+둘은 답을 구하는 방식이 근본적으로 다르다. A에는 <b>정답지가 있다</b>. 무슨 텍스트를 넣으라고 시켰는지,
+어떤 레이아웃을 골랐는지, 원본 템플릿이 무엇이었는지를 프로그램이 전부 알고 있다. 그러니 A는 문자열 비교와
+집합 연산으로 답할 수 있다 — 결정적이고, 재현 가능하고, 모델이 필요 없고, 밀리초 단위로 끝난다.
+</p>
+
+<p>
+B에는 정답지가 없다. "이 슬라이드가 보기 좋은가"는 렌더링된 픽셀을 봐야 알 수 있고, 보고 나서도 사람마다
+답이 다르다. 그래서 B는 모델에게 물어보는 수밖에 없고, 물어볼 때마다 답이 조금씩 흔들린다.
+</p>
+
+<p>
+이 저장소는 두 질문에 <b>서로 다른 시점, 서로 다른 메커니즘</b>으로 대응한다. 그리고 이 문서의 핵심 주장은
+이것이다 — <em>A는 "채점"이 아니라 "강제"로 구현되어 있다.</em> 코드 어디에도 "템플릿 충실도 점수"를
+계산하는 함수는 없다. 대신 충실도를 <b>어기면 애초에 통과하지 못하게</b> 막는 관문이 파이프라인 곳곳에 박혀 있다.
+</p>
+
+<details class="skipbox">
+  <summary>깊은 배경 — 왜 슬라이드는 "열리는 것"만으로 부족한가 (이미 아신다면 건너뛰세요)</summary>
+  <p>
+    일반적인 코드 생성이라면 "컴파일되면 절반은 성공"이다. 슬라이드는 그렇지 않다.
+    <code>.pptx</code>는 ZIP 안의 XML 묶음이고, python-pptx가 쓴 파일은 문법적으로 거의 항상 유효하다.
+    파일이 열린다는 사실은 아무것도 보장하지 않는다.
+  </p>
+  <p>
+    슬라이드에서 실제로 깨지는 것은 <b>문법이 아니라 배치</b>다. 대표적인 실패 세 가지:
+  </p>
+  <ul>
+    <li><b>넘침(overflow)</b> — 텍스트 상자는 400pt 폭인데 글자가 600pt어치 들어갔다.
+      XML은 완벽하게 유효하고, python-pptx는 아무 불평도 하지 않고, PowerPoint에서 열면 글자가 상자를 뚫고
+      옆 도형 위로 흘러넘친다. <b>파일을 다시 파싱하는 방식의 검증으로는 절대 잡히지 않는다.</b></li>
+    <li><b>더미 잔존</b> — 템플릿 원본의 "Lorem ipsum"이나 예시 문구가 지워지지 않고 남았다.
+      역시 유효한 파일이다.</li>
+    <li><b>참조 파손</b> — 이미지 관계(relationship)가 끊겨 회색 X 상자가 뜬다.</li>
+  </ul>
+  <p>
+    셋 다 "파일이 유효한가"라는 질문으로는 통과한다. 그래서 슬라이드 검증은 <b>파일 검증이 아니라
+    의미 검증</b>이어야 하고, 그게 이 문서 전체의 배경이다.
+  </p>
+</details>
+
+<h3>이 저장소가 가진 평가 자산 지도</h3>
+
+<p>
+코드를 읽기 전에 어디에 무엇이 있는지 한 번 훑고 가자. 평가와 관련된 코드는 다섯 군데에 흩어져 있다.
+</p>
+
+<div class="tablescroll">
+<table>
+  <thead><tr><th>위치</th><th>성격</th><th>무엇을 하는가</th><th>모델 필요?</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><code>presentation/layout.py</code><br><span class="footnote">Layout.validate / length_rewrite / index_template_slide</span></td>
+      <td><span class="badge gate">GATE</span>사전 강제</td>
+      <td>파이프라인 경로의 요소·이미지·개수·길이 계약 검사</td>
+      <td>길이 재작성에만</td>
+    </tr>
+    <tr>
+      <td><code>mcp_server.py:32</code><br><span class="footnote">mcp_slide_validate</span></td>
+      <td><span class="badge gate">GATE</span>사전 강제</td>
+      <td>MCP 경로의 같은 계약 검사 (구현은 별개)</td>
+      <td>아니오</td>
+    </tr>
+    <tr>
+      <td><code>apis.py:127</code><br><span class="footnote">CodeExecutor.execute_actions</span></td>
+      <td><span class="badge gate">GATE</span>실행 강제</td>
+      <td>편집 코드가 실제로 돌아가는지 · 실패 시 재시도 피드백</td>
+      <td>재시도에만</td>
+    </tr>
+    <tr>
+      <td><code>presentation/presentation.py:378</code><br><span class="footnote">Presentation.validate</span></td>
+      <td><span class="badge gate">GATE</span>사후 정리</td>
+      <td>손대지 않은 문단을 삭제 예약 (더미 잔존 방지)</td>
+      <td>아니오</td>
+    </tr>
+    <tr>
+      <td><code>ppteval/</code><br><span class="footnote">ppteval.py · score_exp.py · divesity.py · typings.py</span></td>
+      <td><span class="badge judge">JUDGE</span>사후 채점</td>
+      <td>렌더 이미지 기반 style/content, 덱 단위 coherence, 제약 검사, 다양성</td>
+      <td>예 (VLM+LLM)</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<p>
+표를 세로로 읽으면 구조가 드러난다. <b>위 네 줄이 전부 질문 A(템플릿 충실도)</b>이고, 전부 GATE다.
+<b>마지막 한 줄만 질문 B(품질)</b>이고, 유일하게 JUDGE다. 충실도에는 점수가 없고, 품질에는 강제가 없다.
+</p>
+
+<div class="qmemo" data-qid="bg-two-questions" data-status="open">
+  <div class="qmemo-head">
+    <span class="qmemo-label">질문 메모</span>
+    <span class="qmemo-hint">이 부분에서 궁금한 점을 적어보세요. 저장하면 이 파일에 그대로 남습니다.</span>
+  </div>
+  <div class="qmemo-question" contenteditable="true"
+       data-placeholder="여기에 질문을 적어보세요..."></div>
+  <div class="qmemo-answer" hidden></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2 id="intuition"><span class="num">02</span>직관 — 문지기와 심판</h2>
+
+<p>
+비유 하나로 전체 구조를 잡고 가자. 슬라이드 하나가 만들어지는 길은 <b>복도</b>다.
+복도에는 <b>문지기(gate)</b>가 여럿 서 있고, 복도 끝에는 <b>심판(judge)</b>이 앉아 있다.
+</p>
+
+<p>
+문지기는 조건이 안 맞으면 <em>그 자리에서 되돌려 보낸다</em>. 점수를 매기지 않는다. 통과 아니면 반송이다.
+심판은 이미 만들어져 나온 결과물에 <em>1점에서 5점까지 점수를 붙인다</em>. 되돌려 보내지는 않는다.
+</p>
+
+<figure class="fig">
+<div class="svgscroll">
+<svg viewBox="0 0 880 330" role="img" aria-label="생성 복도 위의 문지기 다섯과 복도 끝의 심판 넷">
+  <defs>
+    <marker id="ar" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
+      <path d="M0,0 L7,3 L0,6 z" fill="#7c8a83"/>
+    </marker>
+  </defs>
+
+  <!-- corridor -->
+  <rect x="20" y="86" width="700" height="52" rx="8" fill="#f1f4f2" stroke="#dfe4e0"/>
+  <text x="30" y="78" font-size="11" font-family="ui-monospace,monospace" fill="#7c8a83">생성 복도 — 슬라이드 한 장이 만들어지는 길</text>
+
+  <!-- start -->
+  <rect x="28" y="94" width="96" height="36" rx="6" fill="#efeaf8" stroke="#c3b2e4"/>
+  <text x="76" y="110" font-size="10.5" text-anchor="middle" fill="#6b4fa8" font-weight="700">EditorOutput</text>
+  <text x="76" y="123" font-size="9" text-anchor="middle" fill="#6b4fa8">LLM이 쓴 내용</text>
+
+  <!-- gates -->
+  <g font-size="9.5" text-anchor="middle" font-family="ui-monospace,monospace">
+    <g>
+      <path d="M150,80 L162,112 L150,144 L138,112 z" fill="#e6f1eb" stroke="#1f6b4a" stroke-width="1.4"/>
+      <text x="150" y="116" fill="#1f6b4a" font-weight="700" font-size="11">1</text>
+      <text x="150" y="164" fill="#4d5a54" font-family="sans-serif">요소 계약</text>
+      <text x="150" y="176" fill="#7c8a83" font-size="8.5" font-family="sans-serif">이름·타입 일치</text>
+    </g>
+    <g>
+      <path d="M262,80 L274,112 L262,144 L250,112 z" fill="#e6f1eb" stroke="#1f6b4a" stroke-width="1.4"/>
+      <text x="262" y="116" fill="#1f6b4a" font-weight="700" font-size="11">2</text>
+      <text x="262" y="164" fill="#4d5a54" font-family="sans-serif">길이 예산</text>
+      <text x="262" y="176" fill="#7c8a83" font-size="8.5" font-family="sans-serif">글자수 × 언어계수</text>
+    </g>
+    <g>
+      <path d="M374,80 L386,112 L374,144 L362,112 z" fill="#e6f1eb" stroke="#1f6b4a" stroke-width="1.4"/>
+      <text x="374" y="116" fill="#1f6b4a" font-weight="700" font-size="11">3</text>
+      <text x="374" y="164" fill="#4d5a54" font-family="sans-serif">개수 계약</text>
+      <text x="374" y="176" fill="#7c8a83" font-size="8.5" font-family="sans-serif">variable_length</text>
+    </g>
+    <g>
+      <path d="M486,80 L498,112 L486,144 L474,112 z" fill="#e6f1eb" stroke="#1f6b4a" stroke-width="1.4"/>
+      <text x="486" y="116" fill="#1f6b4a" font-weight="700" font-size="11">4</text>
+      <text x="486" y="164" fill="#4d5a54" font-family="sans-serif">코드 실행</text>
+      <text x="486" y="176" fill="#7c8a83" font-size="8.5" font-family="sans-serif">CodeExecutor</text>
+    </g>
+    <g>
+      <path d="M598,80 L610,112 L598,144 L586,112 z" fill="#e6f1eb" stroke="#1f6b4a" stroke-width="1.4"/>
+      <text x="598" y="116" fill="#1f6b4a" font-weight="700" font-size="11">5</text>
+      <text x="598" y="164" fill="#4d5a54" font-family="sans-serif">미편집 소거</text>
+      <text x="598" y="176" fill="#7c8a83" font-size="8.5" font-family="sans-serif">Presentation.validate</text>
+    </g>
+  </g>
+
+  <!-- output -->
+  <rect x="640" y="94" width="66" height="36" rx="6" fill="#fff" stroke="#dfe4e0"/>
+  <text x="673" y="116" font-size="11" text-anchor="middle" font-family="ui-monospace,monospace" fill="#1b2320">.pptx</text>
+
+  <!-- arrows along corridor -->
+  <g stroke="#7c8a83" stroke-width="1.2" marker-end="url(#ar)" fill="none">
+    <path d="M126,112 L134,112"/>
+    <path d="M166,112 L246,112"/>
+    <path d="M278,112 L358,112"/>
+    <path d="M390,112 L470,112"/>
+    <path d="M502,112 L582,112"/>
+    <path d="M614,112 L636,112"/>
+  </g>
+
+  <!-- reject arrows -->
+  <g stroke="#a33a30" stroke-width="1.1" stroke-dasharray="4 3" fill="none" marker-end="url(#ar)">
+    <path d="M150,80 C150,46 90,46 82,88"/>
+    <path d="M262,80 C262,40 100,36 84,86"/>
+    <path d="M486,80 C486,52 440,44 400,52"/>
+  </g>
+  <text x="220" y="34" font-size="9.5" fill="#a33a30" font-family="sans-serif">반송 — 다시 쓰게 하거나 예외로 중단</text>
+
+  <!-- render + judges -->
+  <path d="M673,138 L673,196" stroke="#7c8a83" stroke-width="1.2" marker-end="url(#ar)" fill="none"/>
+  <text x="683" y="168" font-size="9.5" fill="#7c8a83" font-family="sans-serif">렌더링 (LibreOffice 또는 PowerPoint)</text>
+
+  <rect x="620" y="198" width="106" height="30" rx="6" fill="#e4f0f7" stroke="#a6cbe1"/>
+  <text x="673" y="217" font-size="10" text-anchor="middle" font-family="ui-monospace,monospace" fill="#1d5f8a">slide_*.jpg</text>
+
+  <!-- judge box -->
+  <rect x="200" y="248" width="526" height="66" rx="10" fill="#efeaf8" stroke="#c3b2e4"/>
+  <text x="214" y="266" font-size="10" font-family="ui-monospace,monospace" fill="#6b4fa8">JUDGE — 반송하지 않고 점수만 붙인다</text>
+  <g font-size="10" font-family="sans-serif" fill="#4b3a75" text-anchor="middle">
+    <rect x="216" y="274" width="106" height="30" rx="6" fill="#fff" stroke="#c3b2e4"/>
+    <text x="269" y="288" font-weight="700">style</text>
+    <text x="269" y="299" font-size="8.5" fill="#7c8a83">1–5 · 슬라이드별</text>
+
+    <rect x="332" y="274" width="106" height="30" rx="6" fill="#fff" stroke="#c3b2e4"/>
+    <text x="385" y="288" font-weight="700">content</text>
+    <text x="385" y="299" font-size="8.5" fill="#7c8a83">1–5 · 슬라이드별</text>
+
+    <rect x="448" y="274" width="106" height="30" rx="6" fill="#fff" stroke="#c3b2e4"/>
+    <text x="501" y="288" font-weight="700">coherence</text>
+    <text x="501" y="299" font-size="8.5" fill="#7c8a83">1–5 · 덱 전체</text>
+
+    <rect x="564" y="274" width="150" height="30" rx="6" fill="#e6f1eb" stroke="#a9cdb9"/>
+    <text x="639" y="288" font-weight="700" fill="#1f6b4a">constraint</text>
+    <text x="639" y="299" font-size="8.5" fill="#7c8a83">0–1 · 결정적, 모델 불필요</text>
+  </g>
+
+  <path d="M660,230 C600,240 560,240 520,246" stroke="#7c8a83" stroke-width="1.2" marker-end="url(#ar)" fill="none"/>
+</svg>
+</div>
+<figcaption>
+  다섯 개의 문지기는 전부 <b>템플릿 충실도</b>를 지킨다 — 통과 아니면 반송. 복도 끝의 심판들은 <b>품질</b>에 점수를 붙인다 — 반송은 없다.
+  <code>constraint</code>만 심판석에 앉아 있으면서도 모델을 쓰지 않는 결정적 검사라 색이 다르다.
+</figcaption>
+</figure>
+
+<div class="callout info">
+  <span class="t">핵심 개념 — 강제(enforcement)와 측정(measurement)은 다르다</span>
+  <p>
+    문지기는 <b>나쁜 것이 나오지 못하게</b> 한다. 심판은 <b>나온 것이 얼마나 좋은지</b> 말한다.
+    이 저장소의 템플릿 충실도는 100% 전자다. 그래서 "이 덱의 충실도 점수는 몇 점인가"라고 물으면
+    답할 코드가 없다 — 대신 "이 덱은 문지기 다섯을 전부 통과했다"만 말할 수 있다.
+    <b>문지기가 못 보는 실패는 영원히 보이지 않는다</b>는 뜻이기도 하다. 7절에서 이 문제로 돌아온다.
+  </p>
+</div>
+
+<div class="qmemo" data-qid="intuition-gate-vs-judge" data-status="open">
+  <div class="qmemo-head">
+    <span class="qmemo-label">질문 메모</span>
+    <span class="qmemo-hint">위 복도 그림에서 헷갈리는 지점이 있다면 적어두세요.</span>
+  </div>
+  <div class="qmemo-question" contenteditable="true"
+       data-placeholder="여기에 질문을 적어보세요..."></div>
+  <div class="qmemo-answer" hidden></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2 id="fidelity"><span class="num">03</span>템플릿 충실도: 문지기들의 코드</h2>
+
+<p>
+이제 문지기 다섯을 하나씩 코드로 뜯어본다. 전 구간에서 같은 예제를 쓰겠다.
+템플릿은 영어권 덱이고, 우리는 한국어 슬라이드를 만든다. 레이아웃 하나가 이렇게 생겼다고 하자.
+</p>
+
+<pre class="light"><code><span class="cmt"># Layout.content_schema 가 모델에게 보여주는 텍스트 (layout.py:34 get_schema)</span>
+Element: main_title
+	type: text
+	suggested_characters: 18
+	The default quantity of the element is 1
+Element: bullet_points
+	type: text
+	suggested_characters: 42
+	The length of the element can vary between 2 and 4
+	The default quantity of the element is 3
+Element: figure
+	type: image
+	The default quantity of the element is 1</code></pre>
+
+<p>
+LLM은 이 스키마를 보고 다음을 뱉는다. 이것이 <code>EditorOutput</code>이고, 복도의 출발점이다.
+</p>
+
+<pre><code>[
+  {"name": "main_title",    "data": ["2026년 3분기 매출 실적"]},
+  {"name": "bullet_points", "data": [
+      "북미 매출 전년 대비 34% 성장",
+      "구독 전환율 12.7%로 목표 초과 달성",
+      <span class="hl">"이탈률은 5.1%까지 하락하여 3분기 연속으로 개선세를 이어가고 있습니다"</span>
+  ]},
+  {"name": "figure",        "data": ["/work/media/revenue_chart.png"]}
+]</code></pre>
+
+<p>
+노란색으로 표시한 세 번째 불릿이 40자다. 예산이 42자니까 괜찮아 보이는데 — 뒤에서 보겠지만
+그 42자는 <em>영어 기준</em>이고, 한글 40자는 영어 42자보다 훨씬 넓다. 여기서 이야기가 시작된다.
+</p>
+
+<h3>문지기 1 — 요소 계약: 같은 일을 하는 두 개의 다른 구현</h3>
+
+<p>
+가장 기본적인 검사다. 레이아웃이 요구하는 요소 집합과 모델이 준 요소 집합이 일치하는가?
+그런데 이 저장소에는 <b>이 검사가 두 벌 있다</b>. 실행 경로가 둘이기 때문이다.
+</p>
+
+<h4>파이프라인 경로 — <code>Layout.validate()</code> <span class="pathref">layout.py:76</span></h4>
+
+<pre><code>def validate(self, editor_output: EditorOutput, allowed_images: list[str]):
+    for el in self.elements:
+        if el.name not in editor_output:
+            raise ValueError(f"Element {el.name} not found in editor output")
+        if self[el.name].type != "image":
+            continue
+        <span class="cmt"># ↓ 이미지 경로는 "정확히 존재하는가"가 아니라 "가장 비슷한 게 있는가"로 판정</span>
+        sim_image = max(
+            allowed_images,
+            key=lambda x: edit_distance(x, editor_output[el.name].data[i]),
+        )
+        if edit_distance(sim_image, editor_output[el.name].data[i]) &lt; 0.5 or not exists(sim_image):
+            raise ValueError(f"Image ... not found")
+        <span class="hl">editor_output[el.name].data[i] = sim_image</span>  <span class="cmt"># 조용히 교정한다</span></code></pre>
+
+<p>
+마지막 줄이 눈여겨볼 지점이다. 모델이 <code>/work/media/revenue_chart.png</code>를
+<code>/work/media/revenue-chart.png</code>로 잘못 썼다고 하자. 정규화 편집거리
+(<code>utils.py:233</code>, <code>1 - Levenshtein/max_len</code>)가 0.5 이상이면
+<b>가장 비슷한 실제 파일로 경로를 덮어쓴다</b>. 오류가 아니라 자동 교정이다.
+LLM이 파일명을 조금 틀리는 건 흔한 일이니 실용적인 선택이다.
+</p>
+
+<h4>MCP 경로 — <code>mcp_slide_validate()</code> <span class="pathref">mcp_server.py:32</span></h4>
+
+<pre><code>def mcp_slide_validate(editor_output, layout, prs_lang):
+    warnings, errors = [], []
+    length_factor = get_length_factor(prs_lang, <span class="bad">Language.english()</span>)
+    layout_elements = {el.name for el in layout.elements}
+    editor_elements = {el.name for el in editor_output.elements}
+    for el in layout_elements - editor_elements:
+        errors.append(f"Element {el} not found in editor output")   <span class="cmt"># 누락</span>
+    for el in editor_elements - layout_elements:
+        errors.append(f"Element {el} not found in layout")          <span class="cmt"># 잉여</span>
+    if errors:
+        <span class="cmt"># 아래 길이 검사는 레이아웃 요소명으로 editor_output을 인덱싱한다.</span>
+        <span class="cmt"># 지금 반환하지 않으면 KeyError 가 위 에러들을 덮어버린다.</span>
+        return warnings, errors
+    for el in layout.elements:
+        if layout[el.name].type == "image":
+            for i in range(len(editor_output[el.name].data)):
+                if not <span class="ok">exists(editor_output[el.name].data[i])</span>:   <span class="cmt"># 정확 일치</span>
+                    errors.append(f"Image ... not found")
+        else:
+            charater_counts = max([len(i) for i in editor_output[el.name].data])
+            expected_length = ceil(layout[el.name].suggested_characters * length_factor)
+            if charater_counts - expected_length &gt; 5:
+                warnings.append(f"Element {el.name} has {charater_counts} characters, ...")
+    return warnings, errors</code></pre>
+
+<p>
+차이가 셋이다. 첫째, MCP 쪽은 <b>양방향 집합 차</b>를 본다 — 누락뿐 아니라 레이아웃에 없는 요소를
+넣은 경우도 잡는다. 파이프라인 쪽은 누락만 본다. 둘째, 이미지는 <b>퍼지 매칭 없이 <code>exists()</code></b>다.
+경로가 한 글자만 틀려도 실패한다. 셋째 — 그리고 이게 가장 중요한데 — <b>길이 계수가 다르다</b>.
+</p>
+
+<div class="callout warn">
+  <span class="t">같은 검사, 두 벌의 구현</span>
+  <p>
+    이건 중복이 아니라 <b>정책 분기</b>다. 파이프라인은 <code>source_doc</code>에서 허용 이미지 목록을
+    끌어올 수 있어 퍼지 교정이 가능하지만, MCP 서버는 모델이 임의 경로를 주는 열린 환경이라
+    교정할 후보 목록 자체가 없다. 그래서 정확 일치로 갈 수밖에 없다.
+    다만 두 구현이 <em>어긋나 있다는 사실 자체</em>는 유지보수 부담이고, 실제로 다음 절의 버그를 낳았다.
+  </p>
+</div>
+
+<h3>문지기 2 — 길이 예산: 한글 40자는 영어 42자가 아니다</h3>
+
+<p>
+여기가 템플릿 충실도의 가장 미묘하고 가장 중요한 부분이다. 템플릿 슬라이드의 텍스트 상자는 고정 크기고,
+그 안에 몇 글자가 들어가는지는 <b>글자 폭</b>에 달렸다. 그런데 CJK 글자는 라틴 글자보다 대략 두 배 넓다.
+</p>
+
+<p>
+<code>suggested_characters</code>는 어디서 왔는가? <code>Element.model_post_init</code>
+(<span class="pathref">layout.py:29</span>)에서 <b>템플릿 원본 슬라이드에 실제로 들어 있던 텍스트의 최대 길이</b>로
+자동 계산된다.
+</p>
+
+<pre class="light"><code>def model_post_init(self, _):
+    if self.type == "text":
+        self.suggested_characters = max(len(i) for i in self.data)</code></pre>
+
+<p>
+즉 영어 템플릿이면 42는 "영어 42자가 들어가던 상자"라는 뜻이다. 여기에 언어 변환 계수를 곱한다.
+</p>
+
+<pre class="light"><code><span class="cmt"># pptgen.py:39</span>
+def get_length_factor(src_lan: Language, dst_lang: Language):
+    if src_lan.latin == dst_lang.latin:  <span class="cmt"># 같은 어족 — 여유를 조금 준다</span>
+        return 1.2
+    elif src_lan.latin:                  <span class="cmt"># 라틴 → CJK: 글자가 넓으니 예산을 줄인다</span>
+        return 0.7
+    else:                                <span class="cmt"># CJK → 라틴: 글자가 좁으니 예산을 늘린다</span>
+        return 2.0</code></pre>
+
+<p>
+<code>Language.cjk</code>는 <code>lid in ["zh","ja","ko"]</code>로 판정한다(<span class="pathref">utils.py:43</span>).
+이제 두 경로가 같은 예제에서 <b>다른 답</b>을 내는 장면을 보자.
+</p>
+
+<figure class="fig">
+<div class="svgscroll">
+<svg viewBox="0 0 820 250" role="img" aria-label="같은 한국어 40자에 대해 파이프라인 경로와 MCP 경로가 서로 다른 글자수 예산을 적용하는 비교 막대그래프">
+  <!-- axis -->
+  <line x1="176" y1="34" x2="176" y2="212" stroke="#dfe4e0"/>
+  <text x="20" y="24" font-size="10.5" font-family="ui-monospace,monospace" fill="#7c8a83">bullet_points · suggested_characters = 42 (영어 템플릿 기준)</text>
+
+  <!-- actual -->
+  <text x="168" y="62" font-size="11" text-anchor="end" fill="#1b2320" font-weight="700">실제 입력</text>
+  <text x="168" y="76" font-size="9" text-anchor="end" fill="#7c8a83">한국어 40자</text>
+  <rect x="176" y="48" width="400" height="26" rx="4" fill="#efeaf8" stroke="#c3b2e4"/>
+  <text x="186" y="66" font-size="10" fill="#4b3a75" font-family="ui-monospace,monospace">"이탈률은 5.1%까지 하락하여 3분기 연속으로 개선세를…"  40자</text>
+
+  <!-- pipeline budget -->
+  <text x="168" y="122" font-size="11" text-anchor="end" fill="#1b2320" font-weight="700">파이프라인 예산</text>
+  <text x="168" y="136" font-size="9" text-anchor="end" fill="#7c8a83">factor(en→ko)=0.7</text>
+  <rect x="176" y="108" width="300" height="26" rx="4" fill="#e6f1eb" stroke="#a9cdb9"/>
+  <text x="186" y="126" font-size="10" fill="#1f6b4a" font-family="ui-monospace,monospace">ceil(42 × 0.7) = 30자</text>
+  <!-- overflow marker -->
+  <rect x="476" y="108" width="100" height="26" rx="4" fill="#fbe9e7" stroke="#a33a30" stroke-dasharray="3 2"/>
+  <text x="526" y="126" font-size="10" text-anchor="middle" fill="#a33a30" font-weight="700">초과 10자</text>
+  <text x="592" y="126" font-size="10" fill="#a33a30">→ 경고 → <tspan font-family="ui-monospace,monospace">length_rewrite()</tspan></text>
+
+  <!-- mcp budget -->
+  <text x="168" y="182" font-size="11" text-anchor="end" fill="#1b2320" font-weight="700">MCP 예산</text>
+  <text x="168" y="196" font-size="9" text-anchor="end" fill="#7c8a83">factor(en→<tspan fill="#a33a30" font-weight="700">en</tspan>)=1.2</text>
+  <rect x="176" y="168" width="510" height="26" rx="4" fill="#fbf1dc" stroke="#e3c37f"/>
+  <text x="186" y="186" font-size="10" fill="#a2680a" font-family="ui-monospace,monospace">ceil(42 × 1.2) = 51자</text>
+  <text x="696" y="186" font-size="10" fill="#a2680a">→ 무경고 · 통과</text>
+
+  <!-- dashed link -->
+  <line x1="576" y1="40" x2="576" y2="212" stroke="#a33a30" stroke-width="1" stroke-dasharray="4 3"/>
+  <text x="584" y="46" font-size="9" fill="#a33a30">실제 입력 길이</text>
+
+  <text x="20" y="236" font-size="10" fill="#7c8a83">같은 문장 · 같은 템플릿 · 같은 상자 — 그런데 한쪽은 다시 쓰게 하고, 다른 쪽은 그대로 통과시킨다.</text>
+</svg>
+</div>
+<figcaption>
+  <code>mcp_slide_validate</code>는 <code>get_length_factor(prs_lang, <b>Language.english()</b>)</code>로
+  두 번째 인자를 <b>항상 영어로 고정</b>한다. 출력 언어를 물어볼 자리가 MCP 흐름에 없기 때문이다.
+</figcaption>
+</figure>
+
+<div class="callout danger">
+  <span class="t">중요한 결과 — MCP 경로는 CJK 출력에 대해 예산을 1.7배 과대 책정한다</span>
+  <p>
+    파이프라인은 <code>generate_pres(dst_language=...)</code>에서 출력 언어를 받아
+    <code>get_length_factor(reference_lang, dst_lang)</code>를 계산한다(<span class="pathref">pptgen.py:176-177</span>).
+    MCP 서버에는 그런 매개변수가 없다. <code>write_slide</code>는 요소 배열만 받는다.
+    그래서 영어 템플릿 + 한국어 출력이면 예산이 <code>42×0.7=30</code>이어야 하는데
+    <code>42×1.2=51</code>이 적용된다 — <b>1.7배 관대</b>하다.
+    중국어 템플릿이었다면 <code>(zh→en)=2.0</code>이 걸려 84자까지 통과한다.
+  </p>
+  <p>
+    이건 오타 수준의 실수가 아니라 <b>구조적 공백</b>이다. MCP 흐름에 출력 언어를 선언할 자리가 없다.
+    고치려면 <code>set_template</code>이나 <code>write_slide</code>에 언어 인자를 추가해야 한다.
+  </p>
+</div>
+
+<h4>경고가 나면 무슨 일이 일어나는가 — 두 경로가 또 갈린다</h4>
+
+<div class="flow">
+  <div class="node det">
+    <span class="k">파이프라인</span>
+    <span class="n">자동 재작성</span>
+    <span class="d"><code>Layout.length_rewrite()</code>가 <code>lengthy_rewrite.txt</code> 프롬프트로 LLM에게
+      "이 요소를 N자 이내로 줄여라"를 시키고 결과를 <em>덮어쓴다</em>. 사람도 모델도 개입 없이 조용히 해결된다.</span>
+  </div>
+  <div class="arrow">↔</div>
+  <div class="node llm">
+    <span class="k">MCP</span>
+    <span class="n">모델에게 떠넘김</span>
+    <span class="d"><code>write_slide</code>가 경고 목록을 반환하며 <i>"모든 경고를 고치거나 5회 재시도 후에만
+      진행하라"</i>고 문자열로 지시한다. 강제력은 없다 — 모델이 무시하고 <code>generate_slide</code>를 불러도 막지 못한다.</span>
+  </div>
+</div>
+
+<pre class="light"><code><span class="cmt"># layout.py:99 — 파이프라인 쪽 자동 재작성</span>
+async def length_rewrite(self, editor_output, length_factor, language_model):
+    async with asyncio.TaskGroup() as tg:
+        for el in editor_output.elements:
+            if self[el.name].type != "text": continue
+            charater_counts = max([len(i) for i in el.data])
+            expected_length = ceil(self[el.name].suggested_characters * length_factor)
+            if charater_counts - expected_length &gt; 5:      <span class="cmt"># 5자 유예</span>
+                task = tg.create_task(language_model(
+                    LENGTHY_REWRITE_PROMPT.render(
+                        el_name=el.name, content=el.data,
+                        suggested_characters=f"{self[el.name].suggested_characters} characters"),
+                    return_json=True))
+        for el_name, task in tasks:
+            <span class="hl">editor_output[el_name].data = await task</span>   <span class="cmt"># 결과를 그대로 덮어씀</span></code></pre>
+
+<p>
+프롬프트에 넘기는 값이 <code>suggested_characters</code> <b>원본</b>(42)이지 계수를 곱한 값(30)이 아닌 점에 주목하자.
+즉 모델에게는 "42자로 줄여라"라고 말하면서 통과 기준은 30자다. 재작성 결과가 31~40자면 다시 경고 범위인데
+<code>length_rewrite</code>는 한 번만 돌고 재검증하지 않는다.
+</p>
+
+<div class="qmemo" data-qid="fidelity-length-budget" data-status="open">
+  <div class="qmemo-head">
+    <span class="qmemo-label">질문 메모</span>
+    <span class="qmemo-hint">길이 예산 계산이 헷갈린다면 여기에 적어보세요 (예: "왜 5자를 유예하나?").</span>
+  </div>
+  <div class="qmemo-question" contenteditable="true"
+       data-placeholder="여기에 질문을 적어보세요..."></div>
+  <div class="qmemo-answer" hidden></div>
+</div>
+
+<h3>문지기 3 — 개수 계약: 불릿 5개를 넣으면 어디서 걸리는가</h3>
+
+<p>
+템플릿 레이아웃 중에는 "불릿 2~4개를 받는다"처럼 개수가 가변인 것이 있다. 이때 개수마다
+<b>다른 원본 슬라이드</b>가 준비되어 있다 — 불릿 2개짜리 슬라이드, 3개짜리 슬라이드, 4개짜리 슬라이드.
+<code>vary_mapping</code>이 그 연결이다.
+</p>
+
+<pre class="light"><code><span class="cmt"># layout.py:56</span>
+def index_template_slide(self, data: EditorOutput):
+    old_data = {}
+    template_id = self.template_id
+    for el in self.elements:
+        if el.variable_length is not None:
+            num_vary = len(data[el.name].data)
+            if not (el.variable_length[0] &lt;= num_vary &lt;= el.variable_length[1]):
+                <span class="bad">raise ValueError(f"The length of {el.name}: {num_vary} is not within "
+                                 f"the allowed range: [{el.variable_length[0]}, {el.variable_length[1]}]")</span>
+            <span class="hl">template_id = self.vary_mapping[str(num_vary)]</span>   <span class="cmt"># 개수 → 원본 슬라이드 선택</span>
+            old_data[el.name] = el.variable_data[key]
+        else:
+            old_data[el.name] = el.data
+    return template_id, old_data</code></pre>
+
+<p>
+그러니까 개수 검사는 <b>단순한 유효성 검사가 아니라 슬라이드 선택 그 자체</b>다.
+개수가 범위를 벗어나면 고를 원본이 없으므로 진행이 불가능하다.
+</p>
+
+<div class="callout warn">
+  <span class="t">MCP 경로에서 이 검사는 늦게 터진다</span>
+  <p>
+    <code>index_template_slide</code>는 <code>_generate_commands</code> 안에서 불리고
+    (<span class="pathref">pptgen.py:575</span>), <code>_generate_commands</code>는
+    <code>generate_slide</code>에서 불린다(<span class="pathref">mcp_server.py:293</span>).
+    <code>write_slide</code>에는 개수 검사가 <b>없다</b>.
+  </p>
+  <p>
+    결과: 모델이 불릿 5개를 넣으면 <code>write_slide</code>는 "성공적으로 설정됨"이라고 답하고,
+    <code>generate_slide</code>에서야 <code>ValueError</code>가 난다. 모델 입장에서는
+    "방금 성공했다던 게 왜 지금 실패하지?"가 된다. 검증 게이트가 있는데 <b>피드백 지점이 한 칸 늦다</b>.
+  </p>
+</div>
+
+<h3>문지기 4 — 코드 실행: 편집이 실제로 되는가</h3>
+
+<p>
+여기서 실행 모델이 한 번 바뀐다. 지금까지는 "요소 이름과 데이터"를 다뤘지만, 실제 슬라이드 편집은
+<b>요소 이름이 아니라 도형 번호·문단 번호</b>로 이뤄진다. <code>coder</code> 역할의 LLM이
+다음 다섯 함수만 쓰는 코드를 작성한다(<span class="pathref">apis.py:API_TYPES.Agent</span>).
+</p>
+
+<div class="tablescroll">
+<table>
+  <thead><tr><th>API</th><th>인자</th><th>실패 조건</th></tr></thead>
+  <tbody>
+    <tr><td><code>replace_paragraph</code></td><td><code>div_id, paragraph_id, text</code></td><td>도형에 텍스트 프레임이 없거나 문단 번호가 없음</td></tr>
+    <tr><td><code>del_paragraph</code></td><td><code>div_id, paragraph_id</code></td><td>동일</td></tr>
+    <tr><td><code>clone_paragraph</code></td><td><code>div_id, paragraph_id</code></td><td>동일</td></tr>
+    <tr><td><code>replace_image</code></td><td><code>img_id, image_path</code></td><td>대상이 <code>Picture</code>가 아님</td></tr>
+    <tr><td><code>del_image</code></td><td><code>figure_id</code></td><td>동일</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>
+<code>CodeExecutor.execute_actions</code>(<span class="pathref">apis.py:127</span>)가 이 코드를 한 줄씩 실행하는데,
+검증 관점에서 흥미로운 규칙이 셋 있다.
+</p>
+
+<pre class="light"><code><span class="cmt"># 1) 함수 정의 금지 — 임의 코드 실행을 막는다</span>
+if line.startswith("def"):
+    raise SlideEditError("The function definition were not allowed.")
+
+<span class="cmt"># 2) 한 명령 안에서 clone 과 del 을 섞지 못한다</span>
+if func.startswith("clone") or func.startswith("del"):
+    tag = func.split("_")[0]
+    if self.command_history[-1][-1] is None or self.command_history[-1][-1] == tag:
+        self.command_history[-1][-1] = tag
+    else:
+        raise SlideEditError("Invalid command: Both 'clone_paragraph' and 'del_paragraph'... ")
+
+<span class="cmt"># 3) 샌드박스된 eval — 빌트인 없음, 해당 함수 하나만 주입</span>
+partial_func = partial(self.registered_functions[func], edit_slide)
+<span class="hl">eval(line, SAFE_EVAL_GLOBALS, {func: partial_func})</span>   <span class="cmt"># SAFE_EVAL_GLOBALS = {"__builtins__": {}}</span></code></pre>
+
+<p>
+두 번째 규칙이 템플릿 충실도와 직결된다. 불릿을 3개에서 5개로 늘리려면 <code>clone_paragraph</code>를 두 번,
+줄이려면 <code>del_paragraph</code>를 여러 번 부른다. 한 요소에 대해 두 방향을 섞는 것은
+모델이 <code>quantity_change</code>를 잘못 읽었다는 신호이므로 즉시 반송한다.
+</p>
+
+<p>
+실패하면 <code>execute_actions</code>는 <b>어느 줄에서 터졌는지 표시한 코드 전문과 트레이스백</b>을 돌려준다.
+</p>
+
+<pre><code>api_lines = ("\n".join(api_calls[: line_idx - 1])
+             + f"\n<span class="bad">--&gt; Error Line: {line}</span>\n"
+             + "\n".join(api_calls[line_idx + 1 :]))
+return api_lines, trace_msg</code></pre>
+
+<p>
+그리고 <code>_edit_slide</code>(<span class="pathref">pptgen.py:493</span>)가 이걸 받아 재시도한다.
+여기 중요한 디테일이 하나 있다.
+</p>
+
+<pre class="light"><code>for error_idx in range(self.retry_times):
+    <span class="hl">edit_slide: SlidePage = deepcopy(self.presentation.slides[template_id - 1])</span>
+    feedback = code_executor.execute_actions(edit_actions, edit_slide, self.source_doc)
+    if feedback is None:
+        break
+    edit_actions = await self.staffs["coder"].retry(feedback[0], feedback[1], turn_id, error_idx + 1)
+self.empty_prs.validate(edit_slide)</code></pre>
+
+<p>
+<code>deepcopy</code>가 <b>루프 안에</b> 있다. 재시도할 때마다 원본 템플릿 슬라이드를 새로 복사한다.
+절반쯤 편집된 오염된 상태에서 이어가지 않는다는 뜻이고, 이게 재시도가 안전한 이유다.
+</p>
+
+<h3>문지기 5 — 미편집 소거: 더미 문구를 지우는 진짜 장치</h3>
+
+<p>
+마지막 줄의 <code>self.empty_prs.validate(edit_slide)</code>가 이 절의 주인공이다.
+이름이 <code>validate</code>지만 <b>아무것도 판정하지 않는다</b>. 하는 일은 정리다.
+</p>
+
+<pre class="light"><code><span class="cmt"># presentation.py:378</span>
+def validate(self, slide: SlidePage) -&gt; PPTXSlide:
+    from pptagent.apis import del_para
+    for shape in slide:
+        if not shape.text_frame.is_textframe:
+            continue
+        for para in shape.text_frame.paragraphs:
+            <span class="hl">if not para.edited and para.idx != -1:</span>
+                shape._closures[ClosureType.POST_PROCESS].append(
+                    Closure(partial(del_para, para.real_idx), para.real_idx))
+    return self.build_slide(slide)</code></pre>
+
+<p>
+<code>para.edited</code>는 <code>replace_paragraph</code>나 <code>del_paragraph</code>가 그 문단을 건드렸을 때
+<code>True</code>로 설정된다(<span class="pathref">apis.py:398, 371</span>). 그러니 이 코드가 말하는 바는:
+</p>
+
+<div class="callout">
+  <span class="t">"모델이 손대지 않은 템플릿 문단은 전부 지운다"</span>
+  <p>
+    이것이 <b>더미 잔존을 막는 유일한 장치</b>다. 템플릿 원본에 불릿이 5개인데 모델이 3개만 채웠다면,
+    나머지 2개는 원본 예시 문구를 그대로 담고 있다. 이 함수가 그 2개에 삭제 클로저를 달아
+    <code>build_slide</code> 시점에 XML에서 제거한다.
+  </p>
+</div>
+
+<figure class="fig">
+  <p style="margin:0 0 4px; font-size:.86rem; color:var(--ink-soft)">
+    같은 레이아웃, 세 가지 결말 — 문지기 5가 있을 때와 없을 때, 그리고 문지기 2가 놓쳤을 때
+  </p>
+  <div class="deck">
+    <div class="slidecard tmpl">
+      <div class="sc-n">T</div>
+      <div class="sc-title mid"></div>
+      <div class="sc-line w90"></div>
+      <div class="sc-line w70"></div>
+      <div class="sc-line w90"></div>
+      <div class="sc-line w50"></div>
+      <div class="sc-line w70"></div>
+      <div class="sc-img"></div>
+      <div class="sc-cap">템플릿 원본<br>불릿 5개 · 예시 문구</div>
+    </div>
+
+    <div class="slidecard good">
+      <div class="sc-n">A</div>
+      <div class="sc-flag ok">정상</div>
+      <div class="sc-title short"></div>
+      <div class="sc-line w90"></div>
+      <div class="sc-line w70"></div>
+      <div class="sc-line w50"></div>
+      <div class="sc-img"></div>
+      <div class="sc-cap">문지기 5 통과<br>안 쓴 불릿 2개 삭제됨</div>
+    </div>
+
+    <div class="slidecard bad">
+      <div class="sc-n">B</div>
+      <div class="sc-flag">더미 잔존</div>
+      <div class="sc-title short"></div>
+      <div class="sc-line w90"></div>
+      <div class="sc-line w70"></div>
+      <div class="sc-line w50"></div>
+      <div class="sc-line ghosttext w90"></div>
+      <div class="sc-line ghosttext w70"></div>
+      <div class="sc-img"></div>
+      <div class="sc-cap"><code>validate()</code>가 없었다면<br>원본 예시가 그대로 남는다</div>
+    </div>
+
+    <div class="slidecard bad clip">
+      <div class="sc-n">C</div>
+      <div class="sc-flag">넘침</div>
+      <div class="sc-title over"></div>
+      <div class="sc-line w90"></div>
+      <div class="sc-line w70"></div>
+      <div class="sc-line w90"></div>
+      <div class="sc-img"></div>
+      <div class="sc-cap">문지기 2가 놓친 경우<br><b>어떤 문지기도 못 잡는다</b></div>
+    </div>
+  </div>
+  <figcaption>
+    A와 B의 차이는 <code>Presentation.validate</code>가 만든다. C는 다르다 —
+    파일은 완벽히 유효하고, 모든 요소가 계약대로 있고, 코드도 성공했다.
+    <b>렌더링해서 픽셀을 봐야만</b> 보이는 실패다. 그래서 다음 장이 필요하다.
+  </figcaption>
+</figure>
+
+<div class="qmemo" data-qid="fidelity-gates-summary" data-status="open">
+  <div class="qmemo-head">
+    <span class="qmemo-label">질문 메모</span>
+    <span class="qmemo-hint">문지기 다섯 중 헷갈리는 게 있다면 여기에.</span>
+  </div>
+  <div class="qmemo-question" contenteditable="true"
+       data-placeholder="여기에 질문을 적어보세요..."></div>
+  <div class="qmemo-answer" hidden></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2 id="quality"><span class="num">04</span>콘텐츠·시각 품질: 심판들의 코드</h2>
+
+<p>
+위 그림의 C 같은 실패는 XML을 아무리 읽어도 안 보인다. 텍스트가 상자를 넘쳤는지는
+<b>글꼴을 실제로 조판해 봐야</b> 아는 정보이고, python-pptx는 조판기가 아니다.
+그래서 품질 평가의 첫걸음은 언제나 렌더링이다.
+</p>
+
+<h3>0단계 — 픽셀 만들기</h3>
+
+<pre class="light"><code><span class="cmt"># utils.py:426</span>
+async def ppt_to_images(file: str, output_dir: str, dpi: int = 100):
+    if exists(output_dir) and len(os.listdir(output_dir)) &gt; 0:
+        return                              <span class="cmt"># 이미 렌더된 게 있으면 재사용</span>
+    unoconvert_path = which("unoconvert"); soffice_path = which("soffice")
+    if <span class="hl">use_windows_bridge(unoconvert_path or soffice_path)</span>:
+        pdf_path = ...
+        await winppt.pptx_to_pdf(Path(file), Path(pdf_path))    <span class="cmt"># WSL → Windows PowerPoint (COM)</span>
+        _save_pdf_pages(pdf_path, output_dir, dpi); return
+    <span class="cmt"># 그 외: unoserver 또는 soffice --headless 로 PDF 변환 후 poppler 로 JPG</span></code></pre>
+
+<p>
+경로가 무엇이든 결과는 같다 — <code>slide_01.jpg</code>, <code>slide_02.jpg</code>…
+그리고 <b>이 렌더 결과가 품질 평가 전체의 유일한 입력</b>이다. 렌더러가 없으면 품질 평가는 한 줄도 못 돌린다.
+</p>
+
+<div class="callout info">
+  <span class="t">사내 모드가 평가 인프라이기도 하다</span>
+  <p>
+    LibreOffice를 설치할 수 없는 PC에서 <code>PPTAGENT_OFFICE_MODE=1</code>을 켜면
+    WSL 안의 파이썬이 Windows PowerPoint를 COM으로 몰아 PDF를 뽑는다
+    (<span class="pathref">winppt.py</span>). 이 브리지는 원래 <em>템플릿 제작</em>을 위해 만들어졌지만,
+    <b>슬라이드 생성 경로에는 렌더러가 아예 필요 없고 평가 경로에만 필요하다.</b>
+    즉 사내 모드의 실질적 수혜자는 평가다.
+  </p>
+</div>
+
+<h3>1단계 — 왜 이미지를 바로 채점하지 않는가</h3>
+
+<p>
+이제 슬라이드 그림이 있다. 가장 단순한 접근은 "이 슬라이드 몇 점?"이라고 VLM에게 그림을 던지는 것이다.
+<code>ppteval</code>은 그렇게 하지 않는다. <b>두 단계로 쪼갠다.</b>
+</p>
+
+<figure class="fig">
+<div class="svgscroll">
+<svg viewBox="0 0 860 300" role="img" aria-label="슬라이드 이미지가 VLM 서술을 거쳐 LLM 채점으로 이어지는 2단계 파이프라인과 예시 데이터">
+  <defs>
+    <marker id="ar2" markerWidth="9" markerHeight="9" refX="8" refY="3.2" orient="auto">
+      <path d="M0,0 L8,3.2 L0,6.4 z" fill="#7c8a83"/>
+    </marker>
+  </defs>
+
+  <!-- slide image -->
+  <rect x="16" y="86" width="126" height="80" rx="6" fill="#fff" stroke="#dfe4e0"/>
+  <rect x="24" y="94" width="60" height="7" rx="2" fill="#1f6b4a"/>
+  <rect x="24" y="108" width="102" height="4" rx="2" fill="#c9d2cc"/>
+  <rect x="24" y="117" width="78" height="4" rx="2" fill="#c9d2cc"/>
+  <rect x="82" y="122" width="52" height="30" rx="3" fill="#dbe7ee" stroke="#a6cbe1"/>
+  <rect x="24" y="126" width="70" height="7" rx="2" fill="#a33a30"/>
+  <text x="79" y="180" font-size="9.5" text-anchor="middle" font-family="ui-monospace,monospace" fill="#7c8a83">slide_03.jpg</text>
+  <text x="79" y="192" font-size="8.5" text-anchor="middle" fill="#a33a30">제목이 차트 위로 겹침</text>
+
+  <!-- arrow 1 -->
+  <path d="M146,126 L188,126" stroke="#7c8a83" stroke-width="1.3" marker-end="url(#ar2)" fill="none"/>
+
+  <!-- VLM stage -->
+  <rect x="192" y="52" width="240" height="152" rx="9" fill="#e4f0f7" stroke="#a6cbe1"/>
+  <text x="204" y="70" font-size="9.5" font-family="ui-monospace,monospace" fill="#1d5f8a">STAGE 1 · VISION MODEL — 서술만</text>
+  <text x="204" y="86" font-size="9" font-family="ui-monospace,monospace" fill="#4d5a54">ppteval_describe_style.txt</text>
+  <rect x="202" y="92" width="220" height="102" rx="6" fill="#fff" stroke="#a6cbe1"/>
+  <text x="210" y="106" font-size="8.6" fill="#243029">1. Visual Consistency: the title text</text>
+  <text x="210" y="118" font-size="8.6" fill="#243029">   overlaps the chart in the upper-right;</text>
+  <text x="210" y="130" font-size="8.6" fill="#243029">   low contrast on body text.</text>
+  <text x="210" y="144" font-size="8.6" fill="#243029">2. Color Scheme: colorful — deep green</text>
+  <text x="210" y="156" font-size="8.6" fill="#243029">   header band, white body, blue chart.</text>
+  <text x="210" y="170" font-size="8.6" fill="#243029">3. Visual Elements: header band and a</text>
+  <text x="210" y="182" font-size="8.6" fill="#243029">   divider rule; no icons.</text>
+
+  <!-- cache note -->
+  <path d="M312,204 L312,232" stroke="#7c8a83" stroke-width="1" stroke-dasharray="3 2" marker-end="url(#ar2)" fill="none"/>
+  <rect x="228" y="234" width="168" height="24" rx="5" fill="#f1f4f2" stroke="#dfe4e0"/>
+  <text x="312" y="250" font-size="9" text-anchor="middle" font-family="ui-monospace,monospace" fill="#4d5a54">slide_03.json 에 캐시</text>
+  <text x="312" y="274" font-size="8.6" text-anchor="middle" fill="#7c8a83">재실행 시 VLM 호출을 건너뛴다</text>
+
+  <!-- arrow 2 -->
+  <path d="M436,126 L478,126" stroke="#7c8a83" stroke-width="1.3" marker-end="url(#ar2)" fill="none"/>
+
+  <!-- LLM stage -->
+  <rect x="482" y="52" width="240" height="152" rx="9" fill="#efeaf8" stroke="#c3b2e4"/>
+  <text x="494" y="70" font-size="9.5" font-family="ui-monospace,monospace" fill="#6b4fa8">STAGE 2 · LANGUAGE MODEL — 채점만</text>
+  <text x="494" y="86" font-size="9" font-family="ui-monospace,monospace" fill="#4d5a54">ppteval_style.txt · 5점 루브릭</text>
+  <rect x="492" y="92" width="220" height="102" rx="6" fill="#fff" stroke="#c3b2e4"/>
+  <text x="500" y="107" font-size="8.6" fill="#a33a30" font-weight="700">1점: 스타일 충돌로 내용을 읽기 어렵다</text>
+  <text x="500" y="121" font-size="8.6" fill="#7c8a83">2점: 흑백이라 단조롭지만 읽을 수는 있다</text>
+  <text x="500" y="135" font-size="8.6" fill="#7c8a83">3점: 기본 배색, 보조 시각요소 없음</text>
+  <text x="500" y="149" font-size="8.6" fill="#7c8a83">4점: 조화로운 배색 + 시각요소, 사소한 결함</text>
+  <text x="500" y="163" font-size="8.6" fill="#7c8a83">5점: 조화롭고 매력적</text>
+  <text x="500" y="184" font-size="8.6" fill="#4d5a54" font-style="italic">→ "overlapping" 이 1점 기준에 정확히 걸린다</text>
+
+  <!-- arrow 3 -->
+  <path d="M726,126 L762,126" stroke="#7c8a83" stroke-width="1.3" marker-end="url(#ar2)" fill="none"/>
+
+  <!-- score -->
+  <rect x="766" y="98" width="78" height="56" rx="8" fill="#fbe9e7" stroke="#a33a30"/>
+  <text x="805" y="122" font-size="21" text-anchor="middle" fill="#a33a30" font-weight="700">1</text>
+  <text x="805" y="140" font-size="8.6" text-anchor="middle" fill="#a33a30">style score</text>
+  <text x="805" y="172" font-size="8.4" text-anchor="middle" fill="#7c8a83">/ 5</text>
+</svg>
+</div>
+<figcaption>
+  이미지 → <b>서술</b> → <b>점수</b>. 채점자는 그림을 보지 않는다. 텍스트 서술에만 루브릭을 적용한다.
+</figcaption>
+</figure>
+
+<p>
+왜 이렇게 나눴을까? 이유가 셋이다.
+</p>
+
+<div class="tablescroll">
+<table>
+  <thead><tr><th>이유</th><th>설명</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><b>재현성</b></td>
+      <td>루브릭 적용이 순수 텍스트 추론이 된다. 멀티모달 추론은 같은 이미지에도 답이 크게 흔들리지만,
+        같은 서술 문장에 같은 5점 루브릭을 적용하는 일은 훨씬 안정적이다.</td>
+    </tr>
+    <tr>
+      <td><b>캐시 가능성</b></td>
+      <td>서술은 슬라이드마다 <code>slide_03.json</code>에 저장된다(<span class="pathref">ppteval.py:63-69</span>).
+        루브릭을 고쳐 재채점할 때 <b>비싼 VLM 호출을 다시 하지 않는다.</b></td>
+    </tr>
+    <tr>
+      <td><b>감사 가능성</b></td>
+      <td>점수가 이상할 때 "무엇을 보고 그렇게 판단했는지"가 파일로 남아 있다.
+        점수만 있는 시스템은 디버깅이 불가능하다.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<p>
+대가는 명확하다. <b>모델 호출이 슬라이드당 2배</b>이고(서술 1 + 채점 1, 그것도 style·content 각각이므로 총 4회),
+서술 단계가 놓친 정보는 채점 단계에서 영영 복구되지 않는다.
+</p>
+
+<pre class="light"><code><span class="cmt"># ppteval.py:54 — 슬라이드 한 장에 대해 실제로 벌어지는 일</span>
+for slide_image in glob(join(slide_folder, "slide_*.jpg")) + glob(...):
+    slide_descr = slide_image.replace(".jpg", ".json")
+    if not os.path.exists(slide_descr):
+        style_descr   = await vision_model(style_descriptor,   slide_image)   <span class="cmt"># VLM ①</span>
+        content_descr = await vision_model(content_descriptor, slide_image)   <span class="cmt"># VLM ②</span>
+        json.dump({"content": content_descr, "style": style_descr}, ...)      <span class="cmt"># 캐시</span>
+    else:
+        descr = json.load(open(slide_descr)); style_descr = descr["style"]; content_descr = descr["content"]
+    if slide_image not in evals["vision"]:
+        evals["vision"][slide_image]  = await language_model(vision_scorer.render(descr=style_descr),   return_json=True)  <span class="cmt"># LLM ③</span>
+    if slide_image not in evals["content"]:
+        evals["content"][slide_image] = await language_model(text_scorer.render(descr=content_descr),   return_json=True)  <span class="cmt"># LLM ④</span></code></pre>
+
+<h4>루브릭이 계단 함수라는 점</h4>
+
+<p>
+<code>ppteval_style.txt</code>와 <code>ppteval_content.txt</code>는 둘 다 상단에
+<i>"Each score level requires that <b>all</b> evaluation criteria meet the standards of that level"</i>이라고 못 박는다.
+즉 연속적인 가중합이 아니라 <b>단계 통과식</b>이다. 위 예제에서 겹침 하나가 나오면
+1점 기준("스타일 충돌로 내용을 읽기 어렵다")에 걸려 배색이 아무리 좋아도 1점이다.
+</p>
+
+<div class="callout">
+  <span class="t">두 장이 여기서 만난다</span>
+  <p>
+    3장에서 본 실패 C(텍스트 넘침)는 문지기 어느 누구도 잡지 못했다. 그런데 그 슬라이드를 렌더링하면
+    VLM 서술에 <i>"overlapping elements"</i>가 등장하고, 그 순간 style 점수는 1점으로 떨어진다.
+  </p>
+  <p>
+    <b>시각 품질 채점이 템플릿 충실도 실패를 간접적으로 잡아낸다.</b> 다만 간접적이라는 게 문제다 —
+    점수가 1점이라는 사실만으로는 "넘쳤다"인지 "배색이 충돌한다"인지 알 수 없고,
+    <code>reason</code> 필드를 사람이 읽어야 구분된다. 자동 회귀 게이트로 쓸 수 없는 이유다.
+  </p>
+</div>
+
+<div class="qmemo" data-qid="quality-two-stage" data-status="open">
+  <div class="qmemo-head">
+    <span class="qmemo-label">질문 메모</span>
+    <span class="qmemo-hint">2단계 채점 그림에서 궁금한 점 (예: "서술이 틀리면 어떻게 되나?").</span>
+  </div>
+  <div class="qmemo-question" contenteditable="true"
+       data-placeholder="여기에 질문을 적어보세요..."></div>
+  <div class="qmemo-answer" hidden></div>
+</div>
+
+<h3>2단계 — coherence: 덱 전체에 붙는 단 하나의 점수</h3>
+
+<p>
+style과 content는 슬라이드마다 붙지만, <b>흐름</b>은 덱 전체를 봐야 한다.
+여기서는 이미지를 아예 쓰지 않는다 — 텍스트만 본다.
+</p>
+
+<div class="flow">
+  <div class="node det">
+    <span class="k">입력</span>
+    <span class="n">Presentation.to_text()</span>
+    <span class="d">슬라이드마다 제목과 문단 텍스트를 <code>----</code>로 구분해 이어붙인 평문
+      (<span class="pathref">presentation.py:424</span>)</span>
+  </div>
+  <div class="arrow">→</div>
+  <div class="node llm">
+    <span class="k">LLM ①</span>
+    <span class="n">ppt_extractor</span>
+    <span class="d">슬라이드별 <em>목적</em> 한 줄 요약 + 발표자·날짜 같은 메타정보 추출</span>
+  </div>
+  <div class="arrow">→</div>
+  <div class="node llm">
+    <span class="k">LLM ②</span>
+    <span class="n">logic_scorer</span>
+    <span class="d">그 요약본에 5점 루브릭 적용 → <code>evals["logic"]</code></span>
+  </div>
+</div>
+
+<p>
+여기서도 "원자료 → 중간 표상 → 채점"이라는 <b>같은 2단계 패턴</b>이 반복된다.
+중간 표상은 <code>extracted.json</code>에 캐시된다. 예를 들어 이런 모양이다.
+</p>
+
+<pre class="light"><code>{
+  "slide_descriptions": [
+    "표지 — 제목과 발표자, 발표 일자를 제시한다.",
+    "3분기 실적 요약 — 매출·전환율·이탈률 세 지표를 제시한다.",
+    "지역별 분해 — 북미 성장이 전체를 견인했음을 보인다.",
+    "..." ],
+  "background": { <span class="hl">"speaker": "김민수", "date": "2026-10-14"</span> }
+}</code></pre>
+
+<p>
+<code>ppteval_coherence.txt</code>의 루브릭은 <b>배경 정보의 유무로 상한이 정해진다</b>:
+</p>
+
+<div class="tablescroll">
+<table>
+  <thead><tr><th>점수</th><th>기준</th><th>위 예시는?</th></tr></thead>
+  <tbody>
+    <tr><td>3점</td><td>구조는 명확하고 전환도 매끄럽다. 다만 배경 정보가 없다</td><td>—</td></tr>
+    <tr><td>4점</td><td>+ 기본 배경 정보(발표자, 날짜, 소속 중 일부)</td><td class="yes">✔ 여기까지</td></tr>
+    <tr><td>5점</td><td>+ 발표자/소속·날짜·<b>감사말 또는 결론</b>까지 모두</td><td class="no">맺음 슬라이드 없음 → 불가</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>
+그래서 <code>FunctionalLayouts.ENDING</code>(<span class="pathref">pptgen.py:52</span>)으로 맺음 슬라이드를
+자동 생성하는 설계는 미학적 취향이 아니라 <b>이 루브릭에서 5점을 받기 위한 조건</b>이다.
+생성 쪽과 평가 쪽이 같은 기준을 공유하고 있다.
+</p>
+
+<h3>3단계 — constraint: 심판석의 결정적 검사</h3>
+
+<p>
+품질 장에 있지만 모델을 전혀 쓰지 않는 검사가 하나 있다.
+<code>DataPoint.verify()</code>(<span class="pathref">ppteval/typings.py:99</span>)는
+<b>렌더된 PDF를 직접 재서</b> 요청 사양을 지켰는지 확인한다.
+</p>
+
+<pre class="light"><code>def verify(self, pdf_file: Path, text: str) -&gt; float:
+    reader = PdfReader(str(pdf_file)); result = []
+
+    <span class="cmt"># ① 페이지 수가 요청 범위 안인가</span>
+    if self.page_low and self.page_high:
+        result.append(self.page_low &lt;= len(reader.pages) &lt;= self.page_high)
+
+    <span class="cmt"># ② 화면비가 맞는가 — PDF mediabox 를 직접 잰다</span>
+    if self.aspect_ratio:
+        ar_map = {WIDE_SCREEN: 16/9, STANDARD_SCREEN: 4/3, POSTER: 594/841}
+        actual_ar = float(reader.pages[0].mediabox.width / reader.pages[0].mediabox.height)
+        result.append(abs(actual_ar - ar_map[self.aspect_ratio]) &lt; 0.1)
+
+    <span class="cmt"># ③ 출력 언어가 맞는가 — fastText 언어식별</span>
+    language = lid_model.predict(text[:1024].replace("\n", ""))[0][0]
+    result.append(self.language == language.replace("__label__", ""))
+
+    <span class="hl">return sum(result) / len(result)</span>   <span class="cmt"># 불리언이 아니라 "만족 비율" 0~1</span></code></pre>
+
+<p>
+반환값이 통과/실패가 아니라 <b>비율</b>인 게 핵심이다. 세 제약 중 둘을 만족하면 0.67이다.
+그래서 나중에 다른 점수들과 나란히 평균 낼 수 있다 — 다만 척도가 달라서 보정이 필요하고,
+그 보정이 <code>log_scores</code>에 숨어 있다(다음 장).
+</p>
+
+<figure class="fig">
+<div class="svgscroll">
+<svg viewBox="0 0 820 170" role="img" aria-label="제약 검사 세 항목의 판정 예시">
+  <text x="16" y="22" font-size="10.5" font-family="ui-monospace,monospace" fill="#7c8a83">DataPoint(page_low=5, page_high=8, aspect_ratio="16:9", language="ko")</text>
+
+  <g font-size="10" font-family="sans-serif">
+    <rect x="16" y="38" width="252" height="52" rx="8" fill="#e6f1eb" stroke="#a9cdb9"/>
+    <text x="28" y="56" font-weight="700" fill="#1f6b4a">① 페이지 수</text>
+    <text x="28" y="72" fill="#4d5a54" font-family="ui-monospace,monospace" font-size="9">len(reader.pages) = 6</text>
+    <text x="28" y="84" fill="#1f6b4a" font-size="9">5 ≤ 6 ≤ 8 → True</text>
+
+    <rect x="282" y="38" width="252" height="52" rx="8" fill="#e6f1eb" stroke="#a9cdb9"/>
+    <text x="294" y="56" font-weight="700" fill="#1f6b4a">② 화면비</text>
+    <text x="294" y="72" fill="#4d5a54" font-family="ui-monospace,monospace" font-size="9">960 / 540 = 1.778</text>
+    <text x="294" y="84" fill="#1f6b4a" font-size="9">|1.778 − 1.778| &lt; 0.1 → True</text>
+
+    <rect x="548" y="38" width="256" height="52" rx="8" fill="#fbe9e7" stroke="#e0aaa3"/>
+    <text x="560" y="56" font-weight="700" fill="#a33a30">③ 언어</text>
+    <text x="560" y="72" fill="#4d5a54" font-family="ui-monospace,monospace" font-size="9">lid_model → "__label__en"</text>
+    <text x="560" y="84" fill="#a33a30" font-size="9">"ko" ≠ "en" → False</text>
+  </g>
+
+  <rect x="16" y="104" width="788" height="34" rx="8" fill="#fbf1dc" stroke="#e3c37f"/>
+  <text x="30" y="126" font-size="11" fill="#a2680a" font-family="ui-monospace,monospace">sum([True, True, False]) / 3 = <tspan font-weight="700" font-size="13">0.67</tspan>  →  log_scores 에서 ×5 →  3.33 / 5</text>
+
+  <text x="16" y="160" font-size="9.5" fill="#7c8a83">언어 판정은 렌더된 슬라이드가 아니라 원고 마크다운(<tspan font-family="ui-monospace,monospace">.slides.md</tspan>)의 앞 1024자로 한다 — 슬라이드가 아니라 입력을 재는 셈이다.</text>
+</svg>
+</div>
+<figcaption>
+  <code>verify()</code>는 세 제약을 각각 불리언으로 판정한 뒤 비율을 낸다. 부분 점수가 나온다는 뜻이다.
+</figcaption>
+</figure>
+
+<h3>4단계 — diversity: 덱과 덱 사이의 거리</h3>
+
+<p>
+마지막 심판은 슬라이드 한 장도, 덱 하나도 아니라 <b>덱의 집합</b>을 본다.
+"이 시스템이 항상 똑같이 생긴 덱만 뱉지 않는가?"를 재는 것이다.
+</p>
+
+<pre class="light"><code><span class="cmt"># divesity.py — DINOv2 로 각 덱의 대표 벡터를 뽑고, Vendi Score 로 다양성을 잰다</span>
+def _extract_all_features(self, task_slides: list[Path]) -&gt; np.ndarray:
+    for image_dir in task_slides:
+        pages  = sorted(image_dir.glob("*.jpg")) or sorted(image_dir.glob("*.png"))
+        images = [Image.open(p).convert("RGB") for p in pages]
+        outputs  = self.model(**inputs)
+        features = outputs.last_hidden_state[:, 0, :]     <span class="cmt"># CLS 토큰</span>
+        <span class="hl">all_features.append(features.mean(dim=0))</span>       <span class="cmt"># 덱 전체를 벡터 하나로 평균</span>
+
+def vendi_score(features):
+    features = features / np.linalg.norm(features, axis=1, keepdims=True)
+    similarity  = features @ features.T                   <span class="cmt"># 코사인 유사도 행렬</span>
+    eigenvalues = np.linalg.eigvalsh(similarity); eigenvalues = np.clip(eigenvalues, 0, None)
+    eigenvalues = eigenvalues / eigenvalues.sum()
+    entropy = -np.sum(eigenvalues * np.log(eigenvalues))
+    return float(np.exp(entropy))                         <span class="cmt"># 유사도 행렬 고유값의 엔트로피 지수</span>
+
+def evaluate(self, task_slides):
+    vs = vendi_score(self._extract_all_features(task_slides))
+    return float(np.log(vs) / np.log(len(features)))       <span class="cmt"># [0, 1] 로 정규화</span>
+</code></pre>
+
+<p>
+직관은 간단하다. Vendi Score는 <b>"실질적으로 서로 다른 덱이 몇 개인가"</b>를 세는 지표다.
+덱이 <var>n</var>개일 때 범위는 1(전부 동일)에서 <var>n</var>(전부 최대한 다름)이고,
+<code>log(VS)/log(n)</code>으로 나누면 0~1이 된다.
+</p>
+
+<div class="tablescroll">
+<table>
+  <thead><tr><th>상황 (덱 3개)</th><th>유사도 행렬</th><th>Vendi Score</th><th>정규화 결과</th></tr></thead>
+  <tbody>
+    <tr><td>전부 시각적으로 동일</td><td>모든 원소 ≈ 1</td><td>≈ 1</td><td class="no">log(1)/log(3) = <b>0.00</b></td></tr>
+    <tr><td>둘은 비슷, 하나만 다름</td><td>부분적 블록 구조</td><td>≈ 2</td><td class="part">log(2)/log(3) ≈ <b>0.63</b></td></tr>
+    <tr><td>셋 다 서로 무관</td><td>단위행렬에 가까움</td><td>≈ 3</td><td class="yes">log(3)/log(3) = <b>1.00</b></td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="callout warn">
+  <span class="t">이 지표가 재지 <em>않는</em> 것</span>
+  <p>
+    덱 하나를 <b>벡터 하나로 평균</b>내기 때문에(<code>features.mean(dim=0)</code>),
+    <em>한 덱 안에서 같은 레이아웃만 20장 반복하는</em> 문제는 이 지표로 전혀 보이지 않는다.
+    평균을 내면 그 단조로움이 사라진다. 덱 <b>간</b> 다양성이지 덱 <b>내</b> 다양성이 아니다.
+  </p>
+</div>
+
+<div class="qmemo" data-qid="quality-diversity" data-status="open">
+  <div class="qmemo-head">
+    <span class="qmemo-label">질문 메모</span>
+    <span class="qmemo-hint">Vendi Score나 DINOv2 부분에서 막히면 여기에 적어두세요.</span>
+  </div>
+  <div class="qmemo-question" contenteditable="true"
+       data-placeholder="여기에 질문을 적어보세요..."></div>
+  <div class="qmemo-answer" hidden></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2 id="aggregate"><span class="num">05</span>점수는 어떻게 합쳐지는가 — 집계의 3층</h2>
+
+<p>
+지금까지 나온 점수들은 척도도 단위도 제각각이다. style/content/coherence는 1~5, constraint는 0~1,
+diversity는 0~1이지만 덱 집합 단위다. 이걸 어떻게 하나의 표로 만드는가?
+</p>
+
+<figure class="fig">
+<div class="svgscroll">
+<svg viewBox="0 0 820 320" role="img" aria-label="슬라이드 · 덱 · 코퍼스 세 층으로 점수가 집계되는 구조">
+  <defs>
+    <marker id="ar3" markerWidth="9" markerHeight="9" refX="8" refY="3.2" orient="auto">
+      <path d="M0,0 L8,3.2 L0,6.4 z" fill="#7c8a83"/>
+    </marker>
+  </defs>
+
+  <!-- layer 1 -->
+  <rect x="16" y="22" width="788" height="76" rx="10" fill="#fff" stroke="#dfe4e0"/>
+  <text x="30" y="42" font-size="10" font-family="ui-monospace,monospace" fill="#7c8a83">LAYER 1 · 슬라이드 한 장</text>
+  <text x="30" y="60" font-size="11.5" font-weight="700" fill="#1b2320">SlideEvals(page, content, style)</text>
+  <text x="30" y="78" font-size="9.5" fill="#4d5a54">슬라이드마다 VLM 서술 2회 + LLM 채점 2회 → 1~5 점수 두 개. 파일: <tspan font-family="ui-monospace,monospace">slide_evals.json</tspan></text>
+  <g>
+    <rect x="560" y="42" width="52" height="40" rx="6" fill="#efeaf8" stroke="#c3b2e4"/>
+    <text x="586" y="60" font-size="13" text-anchor="middle" fill="#6b4fa8" font-weight="700">4</text>
+    <text x="586" y="74" font-size="8" text-anchor="middle" fill="#6b4fa8">content</text>
+    <rect x="620" y="42" width="52" height="40" rx="6" fill="#efeaf8" stroke="#c3b2e4"/>
+    <text x="646" y="60" font-size="13" text-anchor="middle" fill="#6b4fa8" font-weight="700">1</text>
+    <text x="646" y="74" font-size="8" text-anchor="middle" fill="#6b4fa8">style</text>
+    <text x="700" y="66" font-size="9" fill="#7c8a83">× 슬라이드 수</text>
+  </g>
+
+  <path d="M410,100 L410,120" stroke="#7c8a83" stroke-width="1.3" marker-end="url(#ar3)" fill="none"/>
+  <text x="420" y="115" font-size="9" fill="#7c8a83">단순 평균</text>
+
+  <!-- layer 2 -->
+  <rect x="16" y="124" width="788" height="88" rx="10" fill="#fff" stroke="#dfe4e0"/>
+  <text x="30" y="144" font-size="10" font-family="ui-monospace,monospace" fill="#7c8a83">LAYER 2 · 덱 하나</text>
+  <text x="30" y="162" font-size="11.5" font-weight="700" fill="#1b2320">Evals(constraint, constraint_vlm, content, style)</text>
+  <text x="30" y="180" font-size="9.5" fill="#4d5a54">슬라이드 점수의 평균 + 덱 단위 제약 점수. 파일: <tspan font-family="ui-monospace,monospace">evals.json</tspan></text>
+  <text x="30" y="198" font-size="9" fill="#a33a30">주의 — <tspan font-family="ui-monospace,monospace">coherence(logic)</tspan> 는 <tspan font-family="ui-monospace,monospace">ppteval.py</tspan> 에만 있고 <tspan font-family="ui-monospace,monospace">score_exp.py</tspan> 의 Evals 에는 없다. <tspan font-family="ui-monospace,monospace">constraint_vlm</tspan> 은 정의만 되고 채워지지 않는다.</text>
+  <g>
+    <rect x="560" y="146" width="52" height="36" rx="6" fill="#efeaf8" stroke="#c3b2e4"/>
+    <text x="586" y="162" font-size="12" text-anchor="middle" fill="#6b4fa8" font-weight="700">3.8</text>
+    <text x="586" y="175" font-size="7.6" text-anchor="middle" fill="#6b4fa8">content</text>
+    <rect x="618" y="146" width="52" height="36" rx="6" fill="#efeaf8" stroke="#c3b2e4"/>
+    <text x="644" y="162" font-size="12" text-anchor="middle" fill="#6b4fa8" font-weight="700">2.4</text>
+    <text x="644" y="175" font-size="7.6" text-anchor="middle" fill="#6b4fa8">style</text>
+    <rect x="676" y="146" width="60" height="36" rx="6" fill="#e6f1eb" stroke="#a9cdb9"/>
+    <text x="706" y="162" font-size="12" text-anchor="middle" fill="#1f6b4a" font-weight="700">0.67</text>
+    <text x="706" y="175" font-size="7.6" text-anchor="middle" fill="#1f6b4a">constraint</text>
+  </g>
+
+  <path d="M410,214 L410,234" stroke="#7c8a83" stroke-width="1.3" marker-end="url(#ar3)" fill="none"/>
+  <text x="420" y="229" font-size="9" fill="#a2680a" font-weight="700">여기서 척도 보정: constraint × 5</text>
+
+  <!-- layer 3 -->
+  <rect x="16" y="238" width="788" height="72" rx="10" fill="#fbf1dc" stroke="#e3c37f"/>
+  <text x="30" y="258" font-size="10" font-family="ui-monospace,monospace" fill="#a2680a">LAYER 3 · 코퍼스 (framework × model × task)</text>
+  <text x="30" y="276" font-size="11.5" font-weight="700" fill="#1b2320">log_scores(root, pattern)</text>
+  <text x="30" y="294" font-size="9.5" fill="#4d5a54">디렉터리 경로에서 프레임워크/모델/과제를 읽어 3차원으로 묶고, 차원별 평균과 전체 평균을 출력한다.</text>
+  <g>
+    <rect x="592" y="252" width="196" height="44" rx="6" fill="#fff" stroke="#e3c37f"/>
+    <text x="602" y="268" font-size="8.6" font-family="ui-monospace,monospace" fill="#243029">[AVERAGE] (n= 48):</text>
+    <text x="602" y="282" font-size="8.6" font-family="ui-monospace,monospace" fill="#243029">constraint: 3.35 | content: 3.80</text>
+    <text x="602" y="292" font-size="8.6" font-family="ui-monospace,monospace" fill="#243029">| style: 2.40 | avg: 3.18</text>
+  </g>
+</svg>
+</div>
+<figcaption>
+  척도 보정이 3층에서 <b>한 줄로</b> 일어난다: <code>if dim == "constraint": score *= 5</code>.
+  이 한 줄을 모르면 constraint 점수를 다른 지표와 잘못 비교하게 된다.
+</figcaption>
+</figure>
+
+<pre class="light"><code><span class="cmt"># score_exp.py:157 — 눈에 잘 안 띄는 척도 보정</span>
+for dim, score in evals.items():
+    <span class="hl">if dim == "constraint":
+        score *= 5</span>            <span class="cmt"># 0~1 → 0~5 로 맞춰 다른 지표와 평균 낼 수 있게</span>
+    scores[framework][model][task][dim].append(score)</code></pre>
+
+<p>
+그리고 디렉터리 구조 자체가 스키마 역할을 한다 — <code>ws.parts[-4:-1]</code>로
+<code>&lt;framework&gt;/&lt;model&gt;/&lt;task&gt;/evals.json</code>에서 세 축을 읽어낸다.
+암묵적이지만 벤치마크 실행을 단순하게 만드는 실용적인 선택이다.
+</p>
+
+<div class="qmemo" data-qid="aggregate-scales" data-status="open">
+  <div class="qmemo-head">
+    <span class="qmemo-label">질문 메모</span>
+    <span class="qmemo-hint">척도가 섞이는 부분이 헷갈리면 여기에.</span>
+  </div>
+  <div class="qmemo-question" contenteditable="true"
+       data-placeholder="여기에 질문을 적어보세요..."></div>
+  <div class="qmemo-answer" hidden></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2 id="edges"><span class="num">06</span>날카로운 모서리 — 코드를 읽다 발견한 것들</h2>
+
+<p>
+평가 코드를 실제로 돌리기 전에 알아두면 좋은 것들이다. 대부분은 "연구용 스크립트가
+라이브러리인 척하고 있다"는 한 문장으로 요약된다.
+</p>
+
+<h3>① <code>eval_coherence</code>에 <code>await</code>가 빠져 있다</h3>
+
+<pre class="light"><code><span class="cmt"># ppteval.py:88-97</span>
+if not exists(slide_descr):
+    presentation = Presentation.from_file(prs_source, tmp_config).to_text()
+    <span class="bad">extracted = language_model(</span>              <span class="cmt"># ← await 없음</span>
+        ppt_extractor.render(presentation=presentation), return_json=True,
+    )
+    with open(slide_descr, "w", encoding="utf-8") as f:
+        <span class="bad">json.dump(extracted, f, indent=2)</span>        <span class="cmt"># 코루틴 객체를 직렬화하려다 TypeError</span>
+...
+evals["logic"] = <span class="ok">await language_model(</span>          <span class="cmt"># ← 같은 파일 101행은 await 가 있다</span>
+    logic_scorer.render(presentation=extracted), return_json=True)</code></pre>
+
+<p>
+같은 함수 안에서 같은 객체를 한 번은 await하고 한 번은 안 한다.
+<code>extracted.json</code> 캐시가 <b>이미 있으면 이 분기를 타지 않으므로</b> 조용히 숨어 있다가,
+새 덱을 처음 평가할 때 터진다.
+</p>
+
+<h3>② <code>ppteval.py</code>는 import해서 쓸 수 없다</h3>
+
+<pre class="light"><code><span class="cmt"># ppteval.py:14-15 — 모듈 최상단</span>
+language_model = None
+vision_model = None
+...
+<span class="cmt"># ppteval.py:163 — 파일 맨 끝</span>
+if __name__ == "__main__":
+    manager = ModelManager()
+    language_model = manager.language_model
+    vision_model   = manager.vision_model</code></pre>
+
+<p>
+모델 주입이 <code>__main__</code> 블록에서만 일어난다.
+<code>from pptagent.ppteval import eval_ppt</code>로 가져다 쓰면 <code>NoneType is not callable</code>이다.
+게다가 저 대입은 <em>모듈 전역이 아니라 <code>__main__</code> 네임스페이스</em>에 쓰이므로,
+스크립트로 직접 실행해도 함수들이 보는 전역은 여전히 <code>None</code>이다.
+실제로 동작하는 경로는 자체 모델을 세팅하는 <code>score_exp.py</code>다.
+</p>
+
+<h3>③ <code>score_exp.py</code>는 자격증명이 비어 있는 연구 스크립트다</h3>
+
+<pre class="light"><code>gpt = LLM(model="gpt-5-2025-08-07", <span class="bad">api_key=""</span>, is_multimodal=True)
+<span class="bad">mineru_token = ""</span>
+language_lm = vision_lm = gpt
+sem = asyncio.Semaphore(8)</code></pre>
+
+<p>
+쓰려면 손으로 채워야 한다. 설정 파일이나 환경변수를 읽지 않는다.
+</p>
+
+<h3>④ 정의만 되고 쓰이지 않는 제약 평가 골격</h3>
+
+<p>
+<code>ppteval/typings.py</code>에는 <code>ConstraintType</code>(style/cover/agenda/visual_chart/…),
+<code>Constraint</code>, <code>ConstraintEvalResult</code>가 정의되어 있고
+<code>SlideEvals.constraints</code>와 <code>Evals.constraint_vlm</code> 필드도 있다.
+그런데 <code>score_workspace</code>는 <code>SlideEvals(page=…, content=…, style=…)</code>만 채우고
+<code>Evals(constraint=…, content=…, style=…)</code>만 만든다.
+<b>VLM으로 제약을 판정하는 경로는 자리만 잡혀 있고 구현되어 있지 않다.</b>
+</p>
+
+<h3>⑤ 두 평가 진입점이 서로 다른 것을 잰다</h3>
+
+<div class="tablescroll">
+<table>
+  <thead><tr><th></th><th><code>ppteval.eval_ppt()</code></th><th><code>score_exp.score_workspace()</code></th></tr></thead>
+  <tbody>
+    <tr><td>입력</td><td><code>.pptx</code> 경로</td><td>워크스페이스 디렉터리 (<code>.datapoint.json</code> 필요)</td></tr>
+    <tr><td>렌더</td><td><code>ppt_to_images()</code> 직접 호출</td><td>이미 렌더된 <code>.slide_images-pdf-*/</code> 를 가정</td></tr>
+    <tr><td>style / content</td><td class="yes">✔</td><td class="yes">✔</td></tr>
+    <tr><td>coherence (logic)</td><td class="yes">✔</td><td class="no">✘ 없음</td></tr>
+    <tr><td>constraint</td><td class="no">✘ 없음</td><td class="yes">✔</td></tr>
+    <tr><td>모델 주입</td><td class="no">✘ <code>__main__</code> 에서만</td><td class="part">하드코딩</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>
+어느 쪽도 네 지표를 다 내지 못한다. 전체 그림을 보려면 둘을 합쳐야 한다.
+</p>
+
+<h3>⑥ 앞에서 본 두 가지 (다시)</h3>
+
+<ul>
+  <li><b>MCP 경로의 길이 계수가 출력 언어를 모른다</b> — <code>get_length_factor(prs_lang, Language.english())</code>.
+    영어 템플릿 + 한국어 출력에서 예산이 1.7배 관대해진다.</li>
+  <li><b>개수 계약이 <code>write_slide</code>가 아니라 <code>generate_slide</code>에서 터진다</b> —
+    모델은 "성공"이라는 답을 받은 뒤 다음 호출에서 실패한다.</li>
+</ul>
+
+<div class="qmemo" data-qid="edges-list" data-status="open">
+  <div class="qmemo-head">
+    <span class="qmemo-label">질문 메모</span>
+    <span class="qmemo-hint">"이건 정말 버그인가, 의도인가?" 같은 의문을 여기에 남겨두세요.</span>
+  </div>
+  <div class="qmemo-question" contenteditable="true"
+       data-placeholder="여기에 질문을 적어보세요..."></div>
+  <div class="qmemo-answer" hidden></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2 id="gap"><span class="num">07</span>비어 있는 칸 — 아무도 재지 않는 것</h2>
+
+<p>
+2장의 주장으로 돌아가자. 템플릿 충실도는 강제되기만 하고 측정되지 않는다.
+문지기가 못 보는 실패는 아무 흔적도 남기지 않는다. 그 사각지대가 정확히 어디인지 표로 확인하자.
+</p>
+
+<div class="tablescroll">
+<table>
+  <thead><tr>
+    <th>실패 모드</th><th>사전 강제 (GATE)</th><th>사후 측정</th><th>품질 채점이 간접 포착?</th>
+  </tr></thead>
+  <tbody>
+    <tr>
+      <td><b>요소 누락 / 잉여</b></td>
+      <td class="yes">✔ 문지기 1</td>
+      <td class="no">✘</td>
+      <td class="no">—</td>
+    </tr>
+    <tr>
+      <td><b>이미지 경로 오류</b></td>
+      <td class="yes">✔ 문지기 1</td>
+      <td class="no">✘</td>
+      <td class="part">△ VLM이 "이미지 없음"을 서술할 수는 있음</td>
+    </tr>
+    <tr>
+      <td><b>개수 위반</b></td>
+      <td class="part">△ 문지기 3 (피드백 지점이 늦음)</td>
+      <td class="no">✘</td>
+      <td class="no">—</td>
+    </tr>
+    <tr>
+      <td><b>텍스트 넘침 (overflow)</b></td>
+      <td class="part">△ 글자수 근사만 · MCP 경로는 1.7배 관대</td>
+      <td class="no">✘ 실측 없음</td>
+      <td class="part">△ style 1점으로 떨어지지만 원인은 안 알려줌</td>
+    </tr>
+    <tr>
+      <td><b>더미 문구 잔존</b></td>
+      <td class="yes">✔ 문지기 5</td>
+      <td class="no">✘</td>
+      <td class="part">△ content 서술에 잡힐 수도</td>
+    </tr>
+    <tr>
+      <td><b>주입 정확도<br><span class="footnote">지시한 텍스트가 실제로 들어갔는가</span></b></td>
+      <td class="no">✘</td>
+      <td class="no">✘</td>
+      <td class="no">—</td>
+    </tr>
+    <tr>
+      <td><b>이미지 관계(rel) 파손</b></td>
+      <td class="no">✘</td>
+      <td class="no">✘</td>
+      <td class="part">△ 렌더 결과에 회색 상자로</td>
+    </tr>
+    <tr>
+      <td><b>한 덱 안의 레이아웃 단조로움</b></td>
+      <td class="no">✘</td>
+      <td class="no">✘ <span class="footnote">Vendi는 덱 <em>간</em> 다양성만</span></td>
+      <td class="no">—</td>
+    </tr>
+    <tr>
+      <td><b>테마 이탈 (하드코딩 색/폰트)</b></td>
+      <td class="no">✘</td>
+      <td class="no">✘</td>
+      <td class="part">△ style 서술의 Color Scheme 항목</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<p>
+빨간 칸을 세어 보면 패턴이 보인다. <b>사후 측정 열이 통째로 비어 있다.</b>
+템플릿 기반 생성에서 가장 자주 깨지는 것(넘침)에 대해 실측 수단이 없고,
+가장 쉽게 잴 수 있는 것(주입 정확도)조차 아무도 재지 않는다.
+</p>
+
+<h3>가장 값싼 빈칸 — 주입 정확도</h3>
+
+<p>
+이건 모델도, 렌더러도, 네트워크도 필요 없다. 우리는 <code>EditorOutput</code>을 알고 있고,
+저장된 <code>.pptx</code>를 다시 열어 텍스트를 뽑을 수 있다. 두 집합을 비교하면 끝이다.
+</p>
+
+<div class="flow">
+  <div class="node llm">
+    <span class="k">알고 있는 것</span>
+    <span class="n">EditorOutput</span>
+    <span class="d">"이탈률은 5.1%까지 하락하여…" 등 <em>넣으라고 지시한</em> 문자열 전부</span>
+  </div>
+  <div class="arrow">⟷</div>
+  <div class="node det">
+    <span class="k">확인할 수 있는 것</span>
+    <span class="n">저장된 .pptx</span>
+    <span class="d"><code>Presentation.from_file(...).to_text()</code> 로 뽑은 실제 문자열 전부</span>
+  </div>
+  <div class="arrow">=</div>
+  <div class="node det">
+    <span class="k">비교</span>
+    <span class="n">이미 있는 도구로</span>
+    <span class="d"><code>edit_distance()</code> (<span class="pathref">utils.py:233</span>) 로 정규화 유사도를 재면 된다.
+      새 의존성 0개.</span>
+  </div>
+</div>
+
+<p>
+smoketest 3단계가 이미 이 비교의 축소판을 한다 — 저장 후 python-pptx로 다시 열어 텍스트를 대조한다.
+그 로직을 파이프라인 안으로 옮기면 사후 측정 열의 첫 칸이 채워진다.
+</p>
+
+<h3>가장 값진 빈칸 — 넘침 실측</h3>
+
+<p>
+글자수 근사가 부정확한 이유는 명확하다. 실제 넘침은 <b>글꼴, 자간, 자동 줄바꿈, 자동 축소(autofit)</b>가
+결정하는데 <code>len(text)</code>는 그중 아무것도 모른다. 정확히 재려면 조판기에게 물어야 하고,
+이 저장소에는 이미 조판기로 가는 다리가 있다.
+</p>
+
+<pre class="light"><code><span class="cmt"># 개념 — winppt.py 의 COM 브리지 위에서 가능한 것 (아직 구현되어 있지 않다)</span>
+shape = slide.Shapes(i)
+bound  = shape.TextFrame2.TextRange.<span class="hl">BoundHeight</span>   <span class="cmt"># 조판된 텍스트의 실제 높이</span>
+box    = shape.Height                                <span class="cmt"># 도형 높이</span>
+overflow_ratio = bound / box                         <span class="cmt"># &gt; 1.0 이면 넘침, 근사 아닌 실측</span></code></pre>
+
+<p>
+<code>PPTAGENT_OFFICE_MODE=1</code> 브리지는 이미 pptx→PDF 변환과 WMF 렌더링을 위해 돌고 있다.
+같은 COM 세션에서 도형을 훑으면 <b>넘침을 근사가 아니라 실측</b>할 수 있다.
+현재 이 브리지가 평가에 쓰이는 방식은 "PDF로 뽑아 VLM에게 보여주기"뿐인데,
+그건 가장 비싸고 가장 애매한 사용법이다.
+</p>
+
+<div class="callout">
+  <span class="t">정리 — 이 구조에서 무엇을 게이트로, 무엇을 지표로 쓸 것인가</span>
+  <p>
+    <b>게이트(CI에서 실패 처리)</b>: 문지기 1~5 + 주입 정확도 + rel 무결성 + 넘침 실측.
+    전부 결정적이고 재현 가능하다. 넘침 실측만 Windows 브리지를 요구하고 나머지는 모델도 렌더러도 필요 없다.
+  </p>
+  <p>
+    <b>지표(기록만)</b>: style, content, coherence, diversity.
+    같은 입력에 값이 흔들리므로 통과/실패 판정에 쓰면 CI가 불안정해진다.
+    쓸모는 <em>커밋 간 평균 하락 감지</em>와 <em>템플릿·모델 비교</em>에 있다.
+  </p>
+  <p>
+    <code>constraint</code>는 경계에 있다. 결정적이므로 게이트로 쓸 수 있지만,
+    반환값이 불리언이 아니라 비율(0~1)이라 임계값을 정해야 한다.
+  </p>
+</div>
+
+<div class="qmemo" data-qid="gap-coverage" data-status="open">
+  <div class="qmemo-head">
+    <span class="qmemo-label">질문 메모</span>
+    <span class="qmemo-hint">커버리지 표에서 동의하지 않는 칸이 있다면 여기에 적어주세요.</span>
+  </div>
+  <div class="qmemo-question" contenteditable="true"
+       data-placeholder="여기에 질문을 적어보세요..."></div>
+  <div class="qmemo-answer" hidden></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2 id="quiz"><span class="num">08</span>퀴즈</h2>
+
+<p>
+읽은 내용이 실제로 남았는지 확인해 보자. 다섯 문제 모두 코드의 구체적인 동작을 묻는다.
+</p>
+
+<div class="quiz" data-answer="1">
+  <p class="q">1. MCP 경로에서 <b>영어 템플릿</b>으로 <b>한국어</b> 슬라이드를 만들 때,
+    <code>mcp_slide_validate</code>가 적용하는 글자수 예산은?</p>
+  <button class="opt">suggested_characters × 0.7 — 라틴→CJK 계수</button>
+  <button class="opt">suggested_characters × 1.2 — 같은 어족 계수</button>
+  <button class="opt">suggested_characters × 2.0 — CJK→라틴 계수</button>
+  <button class="opt">출력 언어를 감지해 자동으로 결정한다</button>
+  <div class="fb"></div>
+  <div class="fbtext" hidden>
+    <span data-i="0">아깝다. 0.7은 <em>올바른</em> 값이지만 실제로 적용되는 값이 아니다. 파이프라인 경로(<code>generate_pres(dst_language=...)</code>)라면 0.7이 맞다.</span>
+    <span data-i="1">정확하다. <code>get_length_factor(prs_lang, <b>Language.english()</b>)</code>로 두 번째 인자가 영어로 고정돼 있다. 템플릿이 영어면 (en, en) → <code>src.latin == dst.latin</code> → 1.2. 한글에는 1.7배 관대한 예산이다.</span>
+    <span data-i="2">2.0은 CJK 템플릿에서 나오는 값이다. 중국어 템플릿이었다면 (zh → en)이 되어 2.0이 걸린다.</span>
+    <span data-i="3">그럴 것 같지만 아니다. MCP 흐름에는 출력 언어를 선언할 자리 자체가 없다 — <code>write_slide</code>는 요소 배열만 받는다.</span>
+  </div>
+</div>
+
+<div class="quiz" data-answer="1">
+  <p class="q">2. <code>Presentation.validate()</code>가 실제로 하는 일은?</p>
+  <button class="opt">저장 전에 pptx XML이 스키마에 맞는지 검사하고 위반 목록을 반환한다</button>
+  <button class="opt"><code>para.edited</code>가 False인 문단에 삭제 클로저를 달고 슬라이드를 빌드한다</button>
+  <button class="opt">슬라이드의 시각 품질 점수를 계산한다</button>
+  <button class="opt">모든 이미지 경로가 실제로 존재하는지 확인한다</button>
+  <div class="fb"></div>
+  <div class="fbtext" hidden>
+    <span data-i="0">이름 때문에 그렇게 읽히지만 아니다. 이 함수는 아무것도 판정하지 않고 아무것도 반환하지 않는다(빌드된 슬라이드만 반환).</span>
+    <span data-i="1">맞다. 이름은 <code>validate</code>지만 하는 일은 <b>정리</b>다. 모델이 손대지 않은 템플릿 문단에 <code>del_para</code> 클로저를 달아 XML에서 제거한다 — 더미 문구 잔존을 막는 유일한 장치다.</span>
+    <span data-i="2">품질 채점은 <code>ppteval</code>의 일이고, 이 함수는 모델을 전혀 쓰지 않는다.</span>
+    <span data-i="3">이미지 경로 확인은 <code>Layout.validate</code>와 <code>mcp_slide_validate</code>가 편집 <em>전에</em> 한다.</span>
+  </div>
+</div>
+
+<div class="quiz" data-answer="1">
+  <p class="q">3. <code>ppteval</code>이 슬라이드 이미지를 VLM에 넣어 바로 점수를 받지 않고
+    "서술 → 채점" 2단계를 쓰는 가장 큰 이유는?</p>
+  <button class="opt">모델 호출 횟수를 줄여 비용을 아끼려고</button>
+  <button class="opt">채점을 텍스트 추론으로 국한해 재현성을 높이고, 서술을 캐시해 재채점을 값싸게 하려고</button>
+  <button class="opt">VLM이 JSON 형식을 안정적으로 못 만들어서</button>
+  <button class="opt">이미지 해상도가 낮아 직접 채점이 불가능해서</button>
+  <div class="fb"></div>
+  <div class="fbtext" hidden>
+    <span data-i="0">오히려 반대다. 슬라이드 한 장에 VLM 2회 + LLM 2회로 <b>호출이 늘어난다</b>. 비용은 이 설계가 지불하는 대가지 이득이 아니다.</span>
+    <span data-i="1">정확하다. 루브릭 적용이 순수 텍스트 추론이 되어 흔들림이 줄고, 서술은 <code>slide_03.json</code>에 저장되므로 루브릭을 고쳐 재채점할 때 비싼 VLM 호출을 건너뛴다. 덤으로 "무엇을 보고 그렇게 판단했는지"가 파일로 남아 감사가 가능하다.</span>
+    <span data-i="2">두 단계 모두 <code>return_json=True</code>로 JSON을 요구한다. 형식 문제가 아니다.</span>
+    <span data-i="3"><code>ppt_to_images(dpi=100)</code>는 채점에 충분한 해상도다. 해상도는 이 설계의 동기가 아니다.</span>
+  </div>
+</div>
+
+<div class="quiz" data-answer="1">
+  <p class="q">4. <code>DataPoint.verify()</code>가 반환하는 값의 형태는?</p>
+  <button class="opt">모든 제약을 만족하면 True, 하나라도 어기면 False</button>
+  <button class="opt">만족한 제약의 비율 (0.0 ~ 1.0)</button>
+  <button class="opt">다른 지표와 같은 1~5점 척도</button>
+  <button class="opt">위반한 제약들의 목록</button>
+  <div class="fb"></div>
+  <div class="fbtext" hidden>
+    <span data-i="0">불리언을 모으긴 하지만 그대로 반환하지 않는다. <code>all()</code>이 아니라 평균이다.</span>
+    <span data-i="1">맞다. <code>return sum(result) / len(result)</code> — 세 제약 중 둘을 만족하면 0.67이다. 그래서 <code>log_scores</code>에서 <code>score *= 5</code>로 다른 1~5 지표와 척도를 맞춘다.</span>
+    <span data-i="2">1~5는 style/content/coherence의 척도다. constraint는 0~1이고, 비교하려면 5를 곱해야 한다.</span>
+    <span data-i="3">위반 목록을 반환하는 구조(<code>ConstraintEvalResult</code>)가 <code>typings.py</code>에 정의돼는 있지만 채워지지 않는다.</span>
+  </div>
+</div>
+
+<div class="quiz" data-answer="0">
+  <p class="q">5. 시각적으로 완전히 동일한 덱 3개를 <code>SlideStyleDiversity.evaluate()</code>에 넣으면?</p>
+  <button class="opt">0.0</button>
+  <button class="opt">1.0</button>
+  <button class="opt">3.0</button>
+  <button class="opt">log 3 ≈ 1.10</button>
+  <div class="fb"></div>
+  <div class="fbtext" hidden>
+    <span data-i="0">맞다. 모두 동일하면 유사도 행렬의 원소가 전부 1이라 고유값 하나에 질량이 몰리고 엔트로피가 0, 따라서 <code>VS = exp(0) = 1</code>. 정규화하면 <code>log(1)/log(3) = 0</code>이다.</span>
+    <span data-i="1">1.0은 <em>정규화 전</em> Vendi Score 값이다. 반환값은 <code>log(VS)/log(n)</code>이므로 한 번 더 변환된다.</span>
+    <span data-i="2">3.0은 세 덱이 서로 완전히 무관할 때의 Vendi Score(=n)다. 정규화하면 1.0이 된다.</span>
+    <span data-i="3">분모가 <code>log(n)</code>이라 결과는 항상 0~1 범위다. 1.10 같은 값은 나올 수 없다.</span>
+  </div>
+</div>
+
+<div class="qmemo" data-qid="quiz-followup" data-status="open">
+  <div class="qmemo-head">
+    <span class="qmemo-label">질문 메모</span>
+    <span class="qmemo-hint">퀴즈에서 틀린 문항의 배경을 더 알고 싶다면 여기에 적어두세요.</span>
+  </div>
+  <div class="qmemo-question" contenteditable="true"
+       data-placeholder="여기에 질문을 적어보세요..."></div>
+  <div class="qmemo-answer" hidden></div>
+</div>
+
+<p class="footnote" style="margin-top:48px">
+  이 문서가 참조한 코드: <code>pptagent/presentation/layout.py</code> ·
+  <code>pptagent/presentation/presentation.py</code> · <code>pptagent/apis.py</code> ·
+  <code>pptagent/pptgen.py</code> · <code>pptagent/mcp_server.py</code> ·
+  <code>pptagent/utils.py</code> · <code>pptagent/winppt.py</code> ·
+  <code>pptagent/ppteval/{ppteval,score_exp,divesity,typings}.py</code> ·
+  <code>pptagent/prompts/ppteval/*.txt</code>
+</p>
+
+</div><!-- /wrap -->
+
+<div id="qmemo-bar">
+  <button id="qmemo-save-btn">질문 저장 (파일로 다운로드)</button>
+  <span id="qmemo-saymsg"></span>
+</div>
+
+<script>
+(function () {
+  // ── quiz ──
+  document.querySelectorAll('.quiz').forEach(function (quiz) {
+    var answer = parseInt(quiz.dataset.answer, 10);
+    var opts = Array.prototype.slice.call(quiz.querySelectorAll('.opt'));
+    var fb = quiz.querySelector('.fb');
+    var texts = quiz.querySelector('.fbtext');
+    opts.forEach(function (opt, i) {
+      opt.addEventListener('click', function () {
+        opts.forEach(function (o) { o.disabled = true; });
+        opts[answer].classList.add('correct');
+        if (i !== answer) opt.classList.add('wrong');
+        var msg = texts.querySelector('[data-i="' + i + '"]');
+        fb.innerHTML = (i === answer ? '<b>정답.</b> ' : '<b>아닙니다.</b> ')
+          + (msg ? msg.innerHTML : '');
+        fb.classList.add('show', i === answer ? 'ok' : 'no');
+      });
+    });
+  });
+
+  // ── question memos ──
+  var PATH_KEY = 'qmemo:' + location.pathname;
+  document.querySelectorAll('.qmemo-question').forEach(function (el) {
+    var box = el.closest('.qmemo');
+    var saved = localStorage.getItem(PATH_KEY + ':' + box.dataset.qid);
+    if (saved) el.textContent = saved;
+    el.addEventListener('input', function () {
+      localStorage.setItem(PATH_KEY + ':' + box.dataset.qid, el.textContent);
+    });
+  });
+  var btn = document.getElementById('qmemo-save-btn');
+  if (!btn) return;
+  btn.addEventListener('click', function () {
+    // outerHTML captures the *live* DOM, so text typed into the
+    // contenteditable boxes is baked into the saved file as static markup.
+    var html = '<!doctype html>\n' + document.documentElement.outerHTML;
+    var blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = '2026-08-26-explanation-template-fidelity-and-quality-evaluation.html';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    document.getElementById('qmemo-saymsg').textContent =
+      '다운로드됨 → 파일탐색기에서 이 경로에 덮어쓰세요: C:\\Users\\sihoo\\PythonProject\\PPTAgent\\docs\\understanding\\2026-08-26-explanation-template-fidelity-and-quality-evaluation.html';
+  });
+})();
+</script>
+
+</body>
+</html>
