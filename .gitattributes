@@ -3,3 +3,9 @@
 
 # Python entrypoints are executed directly via their shebang
 *.py text eol=lf
+
+# Windows batch files need CRLF
+*.cmd text eol=crlf
+
+# .env is sourced by bash inside WSL; CR would end up in the values
+.env*    text eol=lf

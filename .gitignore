@@ -40,3 +40,7 @@ dist-ssr
 .superset
 !.vscode/extensions.json
 !.dockerignore
+
+# local dev environment
+.env
+config.local.yaml
