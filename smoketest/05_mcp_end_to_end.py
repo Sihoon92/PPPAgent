@@ -30,6 +30,7 @@ import os
 import re
 import sys
 import tempfile
+import traceback
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -195,9 +196,23 @@ def main() -> int:
     try:
         report = asyncio.run(drive(args.template, ws))
     except Exception as e:
+        # stdio_client runs the server inside an anyio TaskGroup, so a
+        # server-side failure arrives wrapped in an ExceptionGroup, whose
+        # __str__ omits its children (PEP 654). str(e) alone therefore always
+        # reads 'unhandled errors in a TaskGroup' and says nothing about the
+        # actual failure, so render the whole tree.
+        detail = "".join(traceback.format_exception(e))
         print(f"\n  [FAIL] {type(e).__name__}: {str(e)[:600]}\n")
-        OUT.write_text(json.dumps({"ok": False, "error": f"{type(e).__name__}: {e}"},
-                                  ensure_ascii=False, indent=2), encoding="utf-8")
+        print(detail)
+        OUT.write_text(
+            json.dumps(
+                {"ok": False, "error": f"{type(e).__name__}: {e}",
+                 "traceback": detail},
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
         return 1
 
     out_file = Path(report["output"])
